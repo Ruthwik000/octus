@@ -4,6 +4,8 @@ import { getProjectTasks, updateTask } from '../services/taskService';
 import Navbar from '../components/Navbar';
 import LoadingSpinner from '../components/LoadingSpinner';
 
+const BACKEND_URL = import.meta.env.VITE_BACKEND_URL || 'http://localhost:8080';
+
 const AIAnalysis = () => {
   const { projectId } = useParams();
   const navigate = useNavigate();
@@ -12,6 +14,7 @@ const AIAnalysis = () => {
   const [analyzing, setAnalyzing] = useState(false);
   const [analysis, setAnalysis] = useState(null);
   const [selectedSuggestion, setSelectedSuggestion] = useState(null);
+  const [error, setError] = useState(null);
 
   useEffect(() => {
     loadTasksAndAnalyze();
@@ -20,63 +23,177 @@ const AIAnalysis = () => {
   const loadTasksAndAnalyze = async () => {
     try {
       setLoading(true);
+      setError(null);
       const data = await getProjectTasks(projectId);
       setTasks(data);
       
       // Auto-run analysis
-      setTimeout(() => runAIAnalysis(data), 500);
+      if (data.length > 0) {
+        setTimeout(() => runAIAnalysis(data), 500);
+      } else {
+        setLoading(false);
+      }
     } catch (err) {
       console.error(err);
-    } finally {
+      setError('Failed to load tasks');
       setLoading(false);
     }
   };
 
-  const runAIAnalysis = (taskData) => {
+  const runAIAnalysis = async (taskData) => {
     setAnalyzing(true);
+    setError(null);
     
-    // Simulate AI analysis
-    setTimeout(() => {
-      const mockAnalysis = {
-        overallRisk: 68,
-        criticalIssues: [
-          'High complexity tasks assigned to overloaded team members',
-          'Dependencies creating bottlenecks in sprint timeline',
-          'Insufficient buffer time for testing phase'
-        ],
-        suggestions: taskData.map((task, idx) => ({
-          taskId: task.id,
-          taskName: task.name,
-          currentAssignee: task.assignee,
-          currentPoints: task.storyPoints,
-          currentDueDate: task.dueDate,
-          issues: [
-            idx % 3 === 0 ? 'Assignee overloaded (120% capacity)' : null,
-            task.storyPoints > 5 ? 'High complexity - consider breaking down' : null,
-            idx % 2 === 0 ? 'Dependency risk with other tasks' : null
-          ].filter(Boolean),
-          recommendations: {
-            optimalAssignee: task.assignee || 'Sarah Johnson',
-            optimalPoints: Math.max(1, task.storyPoints - 2),
-            optimalDueDate: task.dueDate || '2024-03-25',
-            reasoning: 'Based on team capacity analysis, this reassignment reduces bottlenecks by 35% and balances workload distribution.'
-          },
-          impact: {
-            riskReduction: Math.floor(Math.random() * 30) + 10,
-            timelineSaved: Math.floor(Math.random() * 3) + 1,
-            confidenceScore: Math.floor(Math.random() * 20) + 75
+    try {
+      // Helper function to convert any date format to ISO string
+      const formatDate = (dateValue) => {
+        if (!dateValue) return null;
+        
+        try {
+          // If it's already a valid ISO string
+          if (typeof dateValue === 'string' && dateValue.match(/^\d{4}-\d{2}-\d{2}/)) {
+            return dateValue;
           }
-        })),
-        optimizations: {
-          totalRiskReduction: 42,
-          estimatedTimeSaved: '5 days',
-          teamEfficiencyGain: '28%'
+          
+          // If it's a number (Excel serial date or timestamp)
+          if (typeof dateValue === 'number') {
+            // Check if it's an Excel serial date (typically < 100000)
+            if (dateValue < 100000) {
+              // Convert Excel serial date to JavaScript date
+              const excelEpoch = new Date(1899, 11, 30);
+              const jsDate = new Date(excelEpoch.getTime() + dateValue * 86400000);
+              return jsDate.toISOString().split('T')[0];
+            }
+            // Otherwise treat as timestamp
+            return new Date(dateValue).toISOString().split('T')[0];
+          }
+          
+          // Try to parse as Date object
+          const date = new Date(dateValue);
+          if (!isNaN(date.getTime())) {
+            return date.toISOString().split('T')[0];
+          }
+          
+          return null;
+        } catch (e) {
+          console.warn('Failed to parse date:', dateValue, e);
+          return null;
         }
       };
       
-      setAnalysis(mockAnalysis);
+      // Prepare request payload with proper validation
+      const requestPayload = {
+        projectId: projectId,
+        tasks: taskData.map(task => ({
+          id: String(task.id),
+          name: String(task.name || 'Untitled Task'),
+          assignee: task.assignee ? String(task.assignee) : null,
+          dueDate: formatDate(task.dueDate),
+          storyPoints: Math.max(0, Math.min(100, parseInt(task.storyPoints) || 0)),
+          status: ['todo', 'in-progress', 'done'].includes(task.status) ? task.status : 'todo',
+          dependencies: Array.isArray(task.dependencies) ? task.dependencies : []
+        })),
+        team_capacity: [
+          { name: 'Sarah Johnson', capacity: 40, velocity_multiplier: 1.2 },  // 20% faster
+          { name: 'Michael Chen', capacity: 40, velocity_multiplier: 1.5 },   // 50% faster - senior dev
+          { name: 'David Martinez', capacity: 40, velocity_multiplier: 1.3 }, // 30% faster
+          { name: 'Emily Rodriguez', capacity: 40, velocity_multiplier: 1.1 }, // 10% faster
+          { name: 'James Wilson', capacity: 40, velocity_multiplier: 1.4 },   // 40% faster - DevOps expert
+          { name: 'Lisa Anderson', capacity: 40, velocity_multiplier: 0.9 },  // Average
+          { name: 'Robert Taylor', capacity: 40, velocity_multiplier: 1.0 },  // Average
+          { name: 'Jennifer Lee', capacity: 40, velocity_multiplier: 1.2 },   // 20% faster
+          { name: 'Christopher Brown', capacity: 40, velocity_multiplier: 0.8 }, // Slower - junior
+          { name: 'Amanda White', capacity: 40, velocity_multiplier: 1.1 }    // 10% faster
+        ],
+        sprint_duration_days: 14,
+        velocity_history: [35, 42, 38, 40]
+      };
+
+      console.log('Sending to backend:', requestPayload);
+
+      // Call backend API
+      const response = await fetch(`${BACKEND_URL}/planning/analyze`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(requestPayload)
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => null);
+        console.error('Backend error response:', errorData);
+        
+        // Format error message nicely
+        let errorMessage = `Backend error: ${response.statusText}`;
+        if (errorData?.detail) {
+          if (Array.isArray(errorData.detail)) {
+            errorMessage = `Validation errors:\n${errorData.detail.map(e => `- ${e.msg}`).join('\n')}`;
+          } else {
+            errorMessage = errorData.detail;
+          }
+        }
+        throw new Error(errorMessage);
+      }
+
+      const backendAnalysis = await response.json();
+      console.log('Backend analysis received:', backendAnalysis);
+      
+      // Transform backend response to frontend format
+      const transformedAnalysis = {
+        overallRisk: backendAnalysis.overall_risk_score,
+        criticalIssues: backendAnalysis.critical_issues,
+        suggestions: backendAnalysis.task_analysis.map((taskAnalysis) => {
+          const originalTask = taskData.find(t => t.id === taskAnalysis.task_id);
+          return {
+            taskId: taskAnalysis.task_id,
+            taskName: taskAnalysis.task_name,
+            currentAssignee: originalTask?.assignee || 'Unassigned',
+            currentPoints: originalTask?.storyPoints || 0,
+            currentDueDate: originalTask?.dueDate || 'Not set',
+            issues: [
+              taskAnalysis.risk_level === 'critical' || taskAnalysis.risk_level === 'high' 
+                ? `${taskAnalysis.risk_level.toUpperCase()} risk level detected` 
+                : null,
+              taskAnalysis.risk_factors.complexity > 70 
+                ? 'High complexity - consider breaking down' 
+                : null,
+              taskAnalysis.risk_factors.dependency > 50 
+                ? 'Dependency risk with other tasks' 
+                : null,
+              taskAnalysis.risk_factors.overload > 70 
+                ? 'Assignee overloaded' 
+                : null
+            ].filter(Boolean),
+            recommendations: {
+              optimalAssignee: originalTask?.assignee || 'Sarah Johnson',
+              optimalPoints: Math.max(1, (originalTask?.storyPoints || 5) - 2),
+              optimalDueDate: originalTask?.dueDate || new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString().split('T')[0],
+              reasoning: taskAnalysis.recommendations.join('. ') || 'Based on risk analysis, these adjustments will reduce project risk.'
+            },
+            impact: {
+              riskReduction: Math.min(taskAnalysis.total_risk_score, 30),
+              timelineSaved: Math.floor(taskAnalysis.risk_factors.deadline / 30),
+              confidenceScore: 100 - taskAnalysis.total_risk_score
+            }
+          };
+        }),
+        optimizations: {
+          totalRiskReduction: Math.max(0, 100 - backendAnalysis.overall_risk_score),
+          estimatedTimeSaved: `${backendAnalysis.predicted_release_delay_days} days`,
+          teamEfficiencyGain: `${Math.floor(backendAnalysis.average_velocity / 10)}%`
+        },
+        backendData: backendAnalysis  // Store full backend response
+      };
+      
+      setAnalysis(transformedAnalysis);
+    } catch (err) {
+      console.error('AI Analysis error:', err);
+      setError(`Failed to perform AI analysis: ${err.message}`);
+    } finally {
       setAnalyzing(false);
-    }, 2000);
+      setLoading(false);
+    }
   };
 
   const applySuggestion = async (suggestion) => {
@@ -135,7 +252,7 @@ const AIAnalysis = () => {
               <span>Back to Project</span>
             </button>
             <h1 className="text-4xl font-bold text-white mb-2">AI Analysis & Optimization</h1>
-            <p className="text-dark-300">Intelligent recommendations to optimize your project</p>
+            <p className="text-dark-300">Intelligent recommendations powered by backend AI engine</p>
           </div>
           
           {analysis && (
@@ -150,6 +267,46 @@ const AIAnalysis = () => {
             </button>
           )}
         </div>
+
+        {/* Error Display */}
+        {error && (
+          <div className="bg-danger-500/10 border border-danger-500/30 rounded-2xl p-6 mb-8">
+            <div className="flex items-start space-x-4">
+              <svg className="w-6 h-6 text-danger-500 flex-shrink-0 mt-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+              </svg>
+              <div className="flex-1">
+                <h3 className="text-lg font-semibold text-danger-500 mb-2">Analysis Error</h3>
+                <p className="text-dark-200">{error}</p>
+                <button
+                  onClick={() => loadTasksAndAnalyze()}
+                  className="mt-4 px-4 py-2 bg-danger-600 text-white rounded-xl hover:bg-danger-700 transition-all text-sm font-medium"
+                >
+                  Retry Analysis
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* No Tasks State */}
+        {!loading && !analyzing && tasks.length === 0 && (
+          <div className="card-dark rounded-2xl p-12 text-center">
+            <div className="inline-flex items-center justify-center w-20 h-20 bg-dark-900 rounded-2xl mb-6">
+              <svg className="w-10 h-10 text-dark-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" />
+              </svg>
+            </div>
+            <h3 className="text-2xl font-bold text-white mb-2">No Tasks to Analyze</h3>
+            <p className="text-dark-400 mb-6">Add tasks to your project to get AI-powered insights</p>
+            <button
+              onClick={() => navigate(`/project/${projectId}`)}
+              className="px-6 py-3 bg-primary-600 text-white rounded-xl hover:bg-primary-700 transition-all font-medium"
+            >
+              Go to Planning
+            </button>
+          </div>
+        )}
 
         {analyzing && (
           <div className="card-dark rounded-2xl p-12 text-center">

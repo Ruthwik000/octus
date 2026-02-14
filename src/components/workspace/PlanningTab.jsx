@@ -251,6 +251,17 @@ const PlanningTab = ({ projectId }) => {
   const completedTasks = tasks.filter(t => t.status === 'done').length;
   const inProgressTasks = tasks.filter(t => t.status === 'in-progress').length;
   
+  // Calculate velocity (story points completed)
+  const completedStoryPoints = tasks
+    .filter(t => t.status === 'done')
+    .reduce((acc, t) => acc + (parseInt(t.storyPoints) || 0), 0);
+  
+  const totalStoryPoints = tasks.reduce((acc, t) => acc + (parseInt(t.storyPoints) || 0), 0);
+  
+  const velocityPercentage = totalStoryPoints > 0 
+    ? Math.floor((completedStoryPoints / totalStoryPoints) * 100) 
+    : 0;
+  
   // Calculate predicted delay based on high-risk tasks
   const predictedDelay = Math.floor(highRiskTasks * 0.5); // Each high-risk task adds 0.5 days delay
 
@@ -266,7 +277,7 @@ const PlanningTab = ({ projectId }) => {
   return (
     <div className="p-8">
       {/* KPI Cards */}
-      <div className="grid grid-cols-4 gap-6 mb-8">
+      <div className="grid grid-cols-5 gap-6 mb-8">
         <div className="card-dark rounded-2xl p-6 hover-lift">
           <div className="flex items-center justify-between mb-3">
             <div className="text-sm font-medium text-dark-400">Overall Risk Score</div>
@@ -279,6 +290,21 @@ const PlanningTab = ({ projectId }) => {
           <div className="text-4xl font-bold text-white mb-2">{avgRisk}</div>
           <div className={`text-sm font-medium ${avgRisk > 70 ? 'text-danger-500' : avgRisk > 40 ? 'text-warning-500' : 'text-success-500'}`}>
             {avgRisk > 70 ? 'High Risk' : avgRisk > 40 ? 'Moderate Risk' : 'Low Risk'}
+          </div>
+        </div>
+
+        <div className="card-dark rounded-2xl p-6 hover-lift">
+          <div className="flex items-center justify-between mb-3">
+            <div className="text-sm font-medium text-dark-400">Team Velocity</div>
+            <div className="w-10 h-10 bg-primary-500/10 rounded-xl flex items-center justify-center">
+              <svg className="w-5 h-5 text-primary-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 7h8m0 0v8m0-8l-8 8-4-4-6 6" />
+              </svg>
+            </div>
+          </div>
+          <div className="text-4xl font-bold text-primary-500 mb-2">{completedStoryPoints}</div>
+          <div className="text-sm font-medium text-dark-400">
+            of {totalStoryPoints} points ({velocityPercentage}%)
           </div>
         </div>
 
@@ -343,6 +369,7 @@ const PlanningTab = ({ projectId }) => {
                   Project is at <span className={`font-semibold ${avgRisk > 70 ? 'text-danger-500' : avgRisk > 40 ? 'text-warning-500' : 'text-success-500'}`}>
                     {avgRisk > 70 ? 'High' : avgRisk > 40 ? 'Moderate' : 'Low'} Risk ({avgRisk}%)
                   </span>.
+                  {' '}Team velocity: <span className="text-primary-400 font-semibold">{completedStoryPoints}/{totalStoryPoints} points</span> completed ({velocityPercentage}%).
                   {highRiskTasks > 0 && <> <span className="text-danger-500 font-semibold">{highRiskTasks} tasks</span> likely to slip.</>}
                   {' '}
                   {completedTasks > 0 && <span className="text-success-500 font-semibold">{completedTasks} completed</span>}
