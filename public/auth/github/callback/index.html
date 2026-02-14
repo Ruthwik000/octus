@@ -1,0 +1,16 @@
+<!DOCTYPE html>
+<html>
+<head><title>GitHub OAuth</title></head>
+<body>
+<p>Connecting to GitHub...</p>
+<script>
+  const params = new URLSearchParams(window.location.search);
+  const code = params.get('code');
+  const state = params.get('state');
+  if (code && window.opener) {
+    window.opener.postMessage({ type: 'github-oauth-callback', code, state }, '*');
+  }
+  window.close();
+</script>
+</body>
+</html>
