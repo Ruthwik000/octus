@@ -1,123 +1,556 @@
 import { useState } from 'react';
 
 const VisualQATab = () => {
-  const [baseline, setBaseline] = useState(null);
-  const [comparison, setComparison] = useState(null);
-  const [tolerance, setTolerance] = useState(5);
-  const [analyzing, setAnalyzing] = useState(false);
-  const [results, setResults] = useState(null);
+  const [activeMode, setActiveMode] = useState(null); // 'ux' or 'ui'
+  const [uxScreens, setUxScreens] = useState([]);
+  const [isValidating, setIsValidating] = useState(false);
+  const [validationResults, setValidationResults] = useState(null);
 
-  const handleAnalysis = () => {
-    setAnalyzing(true);
-    setTimeout(() => {
-      setResults({
-        status: 'FAIL',
-        changes: [
-          { element: 'Header Logo', type: 'Position Shift', severity: 'High', shift: '12%' },
-          { element: 'Login Button', type: 'Color Change', severity: 'Medium', shift: '8%' },
-          { element: 'Footer Text', type: 'Font Size', severity: 'Low', shift: '3%' }
-        ]
-      });
-      setAnalyzing(false);
-    }, 2000);
+  const handleGetStarted = (mode) => {
+    setActiveMode(mode);
   };
+
+  const handleImageUpload = (e) => {
+    const files = Array.from(e.target.files);
+    const newScreens = files.map((file) => ({
+      id: Date.now() + Math.random(),
+      file,
+      preview: URL.createObjectURL(file),
+    }));
+    setUxScreens([...uxScreens, ...newScreens]);
+  };
+
+  const handleRemoveScreen = (id) => {
+    setUxScreens(uxScreens.filter((screen) => screen.id !== id));
+  };
+
+  const handleValidateUX = async () => {
+    if (uxScreens.length === 0) return;
+
+    setIsValidating(true);
+
+    try {
+      // Convert images to base64
+      const imagesWithOrder = await Promise.all(
+        uxScreens.map(async (screen, index) => {
+          const base64 = await fileToBase64(screen.file);
+          return {
+            index: index,
+            image: base64,
+          };
+        })
+      );
+
+      const payload = {
+        totalCount: uxScreens.length,
+        images: imagesWithOrder,
+      };
+
+      const response = await fetch('http://127.0.0.1:8000/validateux', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(payload),
+      });
+
+      const result = await response.json();
+      console.log('Validation result:', result);
+      
+      // Handle the response structure - check if it's wrapped in a report object
+      const reportData = result.report || result;
+      
+      // Store in localStorage
+      const storageData = {
+        timestamp: new Date().toISOString(),
+        screenCount: uxScreens.length,
+        results: reportData,
+      };
+      
+      // Get existing reports from localStorage
+      const existingReports = JSON.parse(localStorage.getItem('uxValidationReports') || '[]');
+      
+      // Add new report to the beginning
+      existingReports.unshift(storageData);
+      
+      // Keep only last 10 reports to avoid storage limits
+      const reportsToStore = existingReports.slice(0, 10);
+      
+      // Save to localStorage
+      localStorage.setItem('uxValidationReports', JSON.stringify(reportsToStore));
+      
+      // Set the actual report data for display
+      setValidationResults(reportData);
+      
+      console.log('Validation results set:', reportData);
+    } catch (error) {
+      console.error('Error validating UX:', error);
+      alert('Error validating UX. Please try again.');
+    } finally {
+      setIsValidating(false);
+    }
+  };
+
+  const fileToBase64 = (file) => {
+    return new Promise((resolve, reject) => {
+      const reader = new FileReader();
+      reader.readAsDataURL(file);
+      reader.onload = () => resolve(reader.result);
+      reader.onerror = (error) => reject(error);
+    });
+  };
+
+  if (activeMode === 'ux') {
+    return (
+      <div className="p-8">
+        <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-8">
+          <h2 className="text-2xl font-bold text-gray-900 mb-6">Upload UX Flow Screens</h2>
+          
+          {/* Upload Area */}
+          <div className="mb-6">
+            <label className="block mb-4">
+              <div className="border-2 border-dashed border-gray-300 rounded-lg p-8 text-center cursor-pointer hover:border-blue-500 transition-colors">
+                <div className="text-4xl mb-2">📸</div>
+                <div className="text-sm text-gray-600 mb-1">Click to upload or drag and drop</div>
+                <div className="text-xs text-gray-500">Upload screens in order from start to end</div>
+                <input
+                  type="file"
+                  className="hidden"
+                  accept="image/*"
+                  multiple
+                  onChange={handleImageUpload}
+                />
+              </div>
+            </label>
+          </div>
+
+          {/* Preview Section */}
+          {uxScreens.length > 0 && (
+            <>
+              <div className="mb-4">
+                <h3 className="text-lg font-semibold text-gray-900">
+                  Uploaded Screens ({uxScreens.length})
+                </h3>
+              </div>
+
+              <div className="grid grid-cols-4 gap-4 mb-6">
+                {uxScreens.map((screen, index) => (
+                  <div key={screen.id} className="relative group">
+                    <div className="border border-gray-200 rounded-lg overflow-hidden">
+                      <img
+                        src={screen.preview}
+                        alt={`Screen ${index + 1}`}
+                        className="w-full h-40 object-cover"
+                      />
+                    </div>
+                    <div className="absolute top-2 left-2 bg-blue-600 text-white text-xs font-semibold px-2 py-1 rounded">
+                      {index + 1}
+                    </div>
+                    <button
+                      onClick={() => handleRemoveScreen(screen.id)}
+                      className="absolute top-2 right-2 bg-red-500 text-white text-xs font-semibold px-2 py-1 rounded opacity-0 group-hover:opacity-100 transition-opacity"
+                    >
+                      ✕
+                    </button>
+                  </div>
+                ))}
+              </div>
+
+              {/* Validate Button */}
+              <div className="flex justify-center">
+                <button
+                  onClick={handleValidateUX}
+                  disabled={isValidating}
+                  className="bg-blue-600 text-white px-8 py-3 rounded-lg font-medium hover:bg-blue-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                >
+                  {isValidating ? 'Validating...' : 'Validate UX'}
+                </button>
+              </div>
+            </>
+          )}
+
+          {/* Validation Results */}
+          {validationResults && (
+            <div className="mt-8 space-y-6">
+              {/* Overall Assessment */}
+              {validationResults.overall_assessment && (
+                <div className="bg-gradient-to-r from-blue-50 to-indigo-50 rounded-xl p-6 border border-blue-200">
+                  <div className="flex items-center justify-between mb-4">
+                    <h3 className="text-xl font-bold text-gray-900">Overall Assessment</h3>
+                    <div className="flex items-center gap-3">
+                      <span className={`px-4 py-2 rounded-lg font-semibold ${
+                        validationResults.overall_assessment.severity === 'good' 
+                          ? 'bg-green-100 text-green-700'
+                          : validationResults.overall_assessment.severity === 'warning'
+                          ? 'bg-yellow-100 text-yellow-700'
+                          : 'bg-red-100 text-red-700'
+                      }`}>
+                        {validationResults.overall_assessment.severity?.toUpperCase()}
+                      </span>
+                      <div className="text-right">
+                        <div className="text-2xl font-bold text-blue-600">
+                          {validationResults.overall_assessment.flow_quality_score}
+                        </div>
+                        <div className="text-xs text-gray-600">Quality Score</div>
+                      </div>
+                    </div>
+                  </div>
+                  <p className="text-gray-700 leading-relaxed">
+                    {validationResults.overall_assessment.summary}
+                  </p>
+                </div>
+              )}
+
+              {/* Flow Analysis */}
+              {validationResults.flow_analysis && (
+                <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
+                  <h3 className="text-lg font-bold text-gray-900 mb-4">Flow Analysis</h3>
+                  
+                  {validationResults.flow_analysis.logical_order && (
+                    <div className="mb-4">
+                      <div className="flex items-center gap-2 mb-2">
+                        <span className={`w-3 h-3 rounded-full ${
+                          validationResults.flow_analysis.logical_order.is_correct 
+                            ? 'bg-green-500' 
+                            : 'bg-red-500'
+                        }`}></span>
+                        <h4 className="font-semibold text-gray-900">Logical Order</h4>
+                      </div>
+                      <p className="text-gray-600 text-sm ml-5">
+                        {validationResults.flow_analysis.logical_order.description}
+                      </p>
+                      {validationResults.flow_analysis.logical_order.issues?.length > 0 && (
+                        <div className="ml-5 mt-2">
+                          {validationResults.flow_analysis.logical_order.issues.map((issue, idx) => (
+                            <div key={idx} className="flex items-start gap-2 text-sm text-amber-700 bg-amber-50 p-2 rounded mt-1">
+                              <span>⚠️</span>
+                              <span>{issue}</span>
+                            </div>
+                          ))}
+                        </div>
+                      )}
+                    </div>
+                  )}
+
+                  {/* Screen Transitions */}
+                  {validationResults.flow_analysis.screen_transitions?.length > 0 && (
+                    <div>
+                      <h4 className="font-semibold text-gray-900 mb-3">Screen Transitions</h4>
+                      <div className="space-y-2">
+                        {validationResults.flow_analysis.screen_transitions.map((transition, idx) => (
+                          <div key={idx} className="bg-gray-50 rounded-lg p-4">
+                            <div className="flex items-center gap-2 mb-2">
+                              <span className="font-medium text-gray-900">
+                                Screen {transition.from_screen} → Screen {transition.to_screen}
+                              </span>
+                              <span className="text-sm text-gray-600">({transition.transition_type})</span>
+                              {transition.is_smooth && (
+                                <span className="text-xs bg-green-100 text-green-700 px-2 py-1 rounded">Smooth</span>
+                              )}
+                            </div>
+                            {transition.issues?.length > 0 && (
+                              <div className="space-y-1">
+                                {transition.issues.map((issue, i) => (
+                                  <p key={i} className="text-sm text-gray-600 ml-4">• {issue}</p>
+                                ))}
+                              </div>
+                            )}
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+                </div>
+              )}
+
+              {/* Screen by Screen Analysis */}
+              {validationResults.screen_by_screen_analysis?.length > 0 && (
+                <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
+                  <h3 className="text-lg font-bold text-gray-900 mb-4">Screen by Screen Analysis</h3>
+                  <div className="space-y-4">
+                    {validationResults.screen_by_screen_analysis.map((screen, idx) => (
+                      <div key={idx} className="border border-gray-200 rounded-lg p-4">
+                        <div className="flex items-center gap-3 mb-3">
+                          <span className="bg-blue-600 text-white font-bold px-3 py-1 rounded">
+                            {screen.screen_index}
+                          </span>
+                          <h4 className="font-semibold text-gray-900">{screen.screen_title}</h4>
+                        </div>
+
+                        <div className="grid grid-cols-2 gap-4 mb-3">
+                          {screen.fields_present?.length > 0 && (
+                            <div>
+                              <h5 className="text-sm font-semibold text-green-700 mb-1">✓ Fields Present</h5>
+                              <ul className="text-sm text-gray-600 space-y-1">
+                                {screen.fields_present.map((field, i) => (
+                                  <li key={i}>• {field}</li>
+                                ))}
+                              </ul>
+                            </div>
+                          )}
+                          {screen.missing_fields?.length > 0 && (
+                            <div>
+                              <h5 className="text-sm font-semibold text-red-700 mb-1">✗ Missing Fields</h5>
+                              <ul className="text-sm text-gray-600 space-y-1">
+                                {screen.missing_fields.map((field, i) => (
+                                  <li key={i}>• {field}</li>
+                                ))}
+                              </ul>
+                            </div>
+                          )}
+                        </div>
+
+                        {screen.issues?.length > 0 && (
+                          <div className="mb-3">
+                            <h5 className="text-sm font-semibold text-gray-900 mb-2">Issues</h5>
+                            <div className="space-y-2">
+                              {screen.issues.map((issue, i) => (
+                                <div key={i} className={`text-sm p-2 rounded ${
+                                  issue.severity === 'high' 
+                                    ? 'bg-red-50 text-red-700'
+                                    : issue.severity === 'medium'
+                                    ? 'bg-amber-50 text-amber-700'
+                                    : 'bg-blue-50 text-blue-700'
+                                }`}>
+                                  <span className="font-semibold">{issue.type}:</span> {issue.description}
+                                </div>
+                              ))}
+                            </div>
+                          </div>
+                        )}
+
+                        {screen.recommendations?.length > 0 && (
+                          <div>
+                            <h5 className="text-sm font-semibold text-gray-900 mb-2">💡 Recommendations</h5>
+                            <ul className="text-sm text-gray-600 space-y-1">
+                              {screen.recommendations.map((rec, i) => (
+                                <li key={i}>• {rec}</li>
+                              ))}
+                            </ul>
+                          </div>
+                        )}
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              {/* Consistency Check */}
+              {validationResults.consistency_check && (
+                <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
+                  <h3 className="text-lg font-bold text-gray-900 mb-4">Consistency Check</h3>
+                  <div className="grid grid-cols-3 gap-4">
+                    {validationResults.consistency_check.visual_consistency && (
+                      <div className="border border-gray-200 rounded-lg p-4">
+                        <div className="flex items-center gap-2 mb-2">
+                          <span className={`w-3 h-3 rounded-full ${
+                            validationResults.consistency_check.visual_consistency.is_consistent 
+                              ? 'bg-green-500' 
+                              : 'bg-red-500'
+                          }`}></span>
+                          <h4 className="font-semibold text-gray-900">Visual</h4>
+                        </div>
+                        {validationResults.consistency_check.visual_consistency.issues?.length > 0 && (
+                          <ul className="text-sm text-gray-600 space-y-1">
+                            {validationResults.consistency_check.visual_consistency.issues.map((issue, i) => (
+                              <li key={i}>• {issue}</li>
+                            ))}
+                          </ul>
+                        )}
+                      </div>
+                    )}
+
+                    {validationResults.consistency_check.navigation_consistency && (
+                      <div className="border border-gray-200 rounded-lg p-4">
+                        <div className="flex items-center gap-2 mb-2">
+                          <span className={`w-3 h-3 rounded-full ${
+                            validationResults.consistency_check.navigation_consistency.is_consistent 
+                              ? 'bg-green-500' 
+                              : 'bg-red-500'
+                          }`}></span>
+                          <h4 className="font-semibold text-gray-900">Navigation</h4>
+                        </div>
+                        {validationResults.consistency_check.navigation_consistency.issues?.length > 0 && (
+                          <ul className="text-sm text-gray-600 space-y-1">
+                            {validationResults.consistency_check.navigation_consistency.issues.map((issue, i) => (
+                              <li key={i}>• {issue}</li>
+                            ))}
+                          </ul>
+                        )}
+                      </div>
+                    )}
+
+                    {validationResults.consistency_check.branding_consistency && (
+                      <div className="border border-gray-200 rounded-lg p-4">
+                        <div className="flex items-center gap-2 mb-2">
+                          <span className={`w-3 h-3 rounded-full ${
+                            validationResults.consistency_check.branding_consistency.is_consistent 
+                              ? 'bg-green-500' 
+                              : 'bg-red-500'
+                          }`}></span>
+                          <h4 className="font-semibold text-gray-900">Branding</h4>
+                        </div>
+                        {validationResults.consistency_check.branding_consistency.issues?.length > 0 && (
+                          <ul className="text-sm text-gray-600 space-y-1">
+                            {validationResults.consistency_check.branding_consistency.issues.map((issue, i) => (
+                              <li key={i}>• {issue}</li>
+                            ))}
+                          </ul>
+                        )}
+                      </div>
+                    )}
+                  </div>
+                </div>
+              )}
+
+              {/* Recommendations */}
+              {validationResults.recommendations?.length > 0 && (
+                <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
+                  <h3 className="text-lg font-bold text-gray-900 mb-4">Key Recommendations</h3>
+                  <div className="space-y-3">
+                    {validationResults.recommendations.map((rec, idx) => (
+                      <div key={idx} className={`border-l-4 p-4 rounded ${
+                        rec.priority === 'high'
+                          ? 'border-red-500 bg-red-50'
+                          : rec.priority === 'medium'
+                          ? 'border-amber-500 bg-amber-50'
+                          : 'border-blue-500 bg-blue-50'
+                      }`}>
+                        <div className="flex items-center gap-2 mb-1">
+                          <span className={`text-xs font-bold px-2 py-1 rounded ${
+                            rec.priority === 'high'
+                              ? 'bg-red-200 text-red-800'
+                              : rec.priority === 'medium'
+                              ? 'bg-amber-200 text-amber-800'
+                              : 'bg-blue-200 text-blue-800'
+                          }`}>
+                            {rec.priority?.toUpperCase()}
+                          </span>
+                          <span className="text-sm font-semibold text-gray-700">{rec.category}</span>
+                        </div>
+                        <p className="text-sm text-gray-700">{rec.description}</p>
+                        {rec.affected_screens?.length > 0 && (
+                          <p className="text-xs text-gray-500 mt-1">
+                            Affects screens: {rec.affected_screens.join(', ')}
+                          </p>
+                        )}
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              {/* User Journey Assessment */}
+              {validationResults.user_journey_assessment && (
+                <div className="bg-gradient-to-r from-purple-50 to-pink-50 rounded-xl p-6 border border-purple-200">
+                  <h3 className="text-lg font-bold text-gray-900 mb-4">User Journey Assessment</h3>
+                  
+                  <div className="grid grid-cols-3 gap-4 mb-4">
+                    <div className="text-center">
+                      <div className="text-3xl font-bold text-purple-600">
+                        {validationResults.user_journey_assessment.clarity}
+                      </div>
+                      <div className="text-sm text-gray-600">Clarity</div>
+                    </div>
+                    <div className="text-center">
+                      <div className="text-3xl font-bold text-purple-600">
+                        {validationResults.user_journey_assessment.ease_of_use}
+                      </div>
+                      <div className="text-sm text-gray-600">Ease of Use</div>
+                    </div>
+                    <div className="text-center">
+                      <div className="text-3xl font-bold text-purple-600">
+                        {validationResults.user_journey_assessment.completion_likelihood}
+                      </div>
+                      <div className="text-sm text-gray-600">Completion Likelihood</div>
+                    </div>
+                  </div>
+
+                  <div className="grid grid-cols-2 gap-4">
+                    {validationResults.user_journey_assessment.strengths?.length > 0 && (
+                      <div>
+                        <h4 className="font-semibold text-green-700 mb-2">✓ Strengths</h4>
+                        <ul className="text-sm text-gray-700 space-y-1">
+                          {validationResults.user_journey_assessment.strengths.map((strength, i) => (
+                            <li key={i}>• {strength}</li>
+                          ))}
+                        </ul>
+                      </div>
+                    )}
+                    {validationResults.user_journey_assessment.pain_points?.length > 0 && (
+                      <div>
+                        <h4 className="font-semibold text-red-700 mb-2">⚠️ Pain Points</h4>
+                        <ul className="text-sm text-gray-700 space-y-1">
+                          {validationResults.user_journey_assessment.pain_points.map((point, i) => (
+                            <li key={i}>• {point}</li>
+                          ))}
+                        </ul>
+                      </div>
+                    )}
+                  </div>
+                </div>
+              )}
+
+              {/* Missing Steps */}
+              {validationResults.missing_steps?.length > 0 && (
+                <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
+                  <h3 className="text-lg font-bold text-gray-900 mb-4">Missing Steps</h3>
+                  <div className="space-y-3">
+                    {validationResults.missing_steps.map((step, idx) => (
+                      <div key={idx} className="bg-amber-50 border border-amber-200 rounded-lg p-4">
+                        <div className="font-semibold text-gray-900 mb-1">
+                          After Screen {step.after_screen}: {step.suggested_screen}
+                        </div>
+                        <p className="text-sm text-gray-700">{step.reason}</p>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+            </div>
+          )}
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="p-8">
-      <h2 className="text-2xl font-bold text-gray-900 mb-6">Visual QA Analysis</h2>
-
-      <div className="grid grid-cols-2 gap-6 mb-6">
-        <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
-          <h3 className="font-semibold text-gray-900 mb-4">Baseline Screenshot (v1)</h3>
-          <div className="border-2 border-dashed border-gray-300 rounded-lg h-64 flex items-center justify-center">
-            {baseline ? (
-              <img src={baseline} alt="Baseline" className="max-h-full" />
-            ) : (
-              <label className="cursor-pointer text-center">
-                <div className="text-4xl mb-2">📸</div>
-                <div className="text-sm text-gray-600">Click to upload baseline</div>
-                <input type="file" className="hidden" onChange={(e) => setBaseline(URL.createObjectURL(e.target.files[0]))} accept="image/*" />
-              </label>
-            )}
+      <div className="grid grid-cols-2 gap-6">
+        {/* Validate UX Card */}
+        <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-8 flex flex-col">
+          <h2 className="text-2xl font-bold text-gray-900 mb-3">Validate UX</h2>
+          <h3 className="text-lg font-semibold text-gray-700 mb-4">Validate User Experience?</h3>
+          <p className="text-gray-600 mb-auto">
+            Give your UI shots, we gonna handle the user flow with clear insights
+          </p>
+          <div className="flex justify-end mt-6">
+            <button
+              onClick={() => handleGetStarted('ux')}
+              className="bg-blue-600 text-white px-6 py-2.5 rounded-lg font-medium hover:bg-blue-700 transition-colors"
+            >
+              Get Started
+            </button>
           </div>
         </div>
 
-        <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
-          <h3 className="font-semibold text-gray-900 mb-4">Comparison Screenshot (v2)</h3>
-          <div className="border-2 border-dashed border-gray-300 rounded-lg h-64 flex items-center justify-center">
-            {comparison ? (
-              <img src={comparison} alt="Comparison" className="max-h-full" />
-            ) : (
-              <label className="cursor-pointer text-center">
-                <div className="text-4xl mb-2">📸</div>
-                <div className="text-sm text-gray-600">Click to upload comparison</div>
-                <input type="file" className="hidden" onChange={(e) => setComparison(URL.createObjectURL(e.target.files[0]))} accept="image/*" />
-              </label>
-            )}
+        {/* Validate UI Card */}
+        <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-8 flex flex-col">
+          <h2 className="text-2xl font-bold text-gray-900 mb-3">Validate UI</h2>
+          <h3 className="text-lg font-semibold text-gray-700 mb-4">Validate User Interface</h3>
+          <p className="text-gray-600 mb-auto">
+            Give your UI shots, we gonna handle user interface with clear insights
+          </p>
+          <div className="flex justify-end mt-6">
+            <button
+              onClick={() => handleGetStarted('ui')}
+              className="bg-blue-600 text-white px-6 py-2.5 rounded-lg font-medium hover:bg-blue-700 transition-colors"
+            >
+              Get Started
+            </button>
           </div>
         </div>
       </div>
-
-      <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6 mb-6">
-        <label className="block text-sm font-medium text-gray-700 mb-2">Tolerance (%)</label>
-        <input
-          type="range"
-          min="0"
-          max="20"
-          value={tolerance}
-          onChange={(e) => setTolerance(e.target.value)}
-          className="w-full"
-        />
-        <div className="text-sm text-gray-600 mt-1">{tolerance}%</div>
-      </div>
-
-      <button
-        onClick={handleAnalysis}
-        disabled={!baseline || !comparison || analyzing}
-        className="bg-primary-600 text-white px-6 py-3 rounded-lg font-medium hover:bg-primary-700 disabled:opacity-50 disabled:cursor-not-allowed"
-      >
-        {analyzing ? 'Analyzing...' : 'Run AI Visual Analysis'}
-      </button>
-
-      {results && (
-        <div className="mt-8 bg-white rounded-xl shadow-sm border border-gray-200 p-6">
-          <div className="flex items-center justify-between mb-6">
-            <h3 className="text-xl font-semibold text-gray-900">Analysis Results</h3>
-            <span className={`px-4 py-2 rounded-lg font-semibold ${results.status === 'PASS' ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-700'}`}>
-              {results.status}
-            </span>
-          </div>
-
-          <table className="w-full">
-            <thead className="bg-gray-50 border-b border-gray-200">
-              <tr>
-                <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Element</th>
-                <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Change Type</th>
-                <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Severity</th>
-                <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Layout Shift</th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-gray-200">
-              {results.changes.map((change, idx) => (
-                <tr key={idx} className="hover:bg-gray-50">
-                  <td className="px-4 py-3 text-sm text-gray-900">{change.element}</td>
-                  <td className="px-4 py-3 text-sm text-gray-600">{change.type}</td>
-                  <td className="px-4 py-3">
-                    <span className={`px-2 py-1 rounded text-xs font-medium ${
-                      change.severity === 'High' ? 'bg-red-100 text-red-700' :
-                      change.severity === 'Medium' ? 'bg-amber-100 text-amber-700' :
-                      'bg-green-100 text-green-700'
-                    }`}>
-                      {change.severity}
-                    </span>
-                  </td>
-                  <td className="px-4 py-3 text-sm text-gray-600">{change.shift}</td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
-      )}
     </div>
   );
 };
