@@ -1,4 +1,7 @@
 import { useState } from 'react';
+import ValidationProgress from './ValidationProgress';
+import VisualRegressionResults from './VisualRegressionResults';
+import UIComparisonResults from './UIComparisonResults';
 
 const VisualQATab = () => {
   const [activeMode, setActiveMode] = useState(null); // 'ux' or 'ui'
@@ -13,6 +16,9 @@ const VisualQATab = () => {
     visualRegressions: false,
     missingElements: false,
   });
+  const [progressChecks, setProgressChecks] = useState([]);
+  const [visualRegressionResults, setVisualRegressionResults] = useState(null);
+  const [uiComparisonResults, setUIComparisonResults] = useState(null);
 
   const handleGetStarted = (mode) => {
     setActiveMode(mode);
@@ -147,29 +153,105 @@ const VisualQATab = () => {
     }
 
     setIsValidating(true);
+    setVisualRegressionResults(null);
+    setUIComparisonResults(null);
+
+    // Initialize progress checks
+    const checks = [];
+    if (selectedChecks.visualRegressions) {
+      checks.push({
+        id: 'visualRegressions',
+        title: '1. Detect visual regressions',
+        description: 'Checking for broken elements or overlap in UI',
+        status: 'pending'
+      });
+    }
+    if (selectedChecks.missingElements) {
+      checks.push({
+        id: 'missingElements',
+        title: '2. Missing elements / layout shifts',
+        description: 'Checking for missing elements and layout shifts',
+        status: 'pending'
+      });
+    }
+    setProgressChecks(checks);
 
     try {
-      const referenceBase64 = await fileToBase64(referenceUI.file);
       const comparisonBase64 = await fileToBase64(comparisonUI.file);
 
-      const payload = {
-        referenceImage: referenceBase64,
-        comparisonImage: comparisonBase64,
-        checks: selectedChecks,
-      };
+      // Step 1: Visual Regressions Check
+      if (selectedChecks.visualRegressions) {
+        setProgressChecks(prev => prev.map(check => 
+          check.id === 'visualRegressions' 
+            ? { ...check, status: 'loading' } 
+            : check
+        ));
 
-      const response = await fetch('http://127.0.0.1:8000/validateui', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify(payload),
-      });
+        try {
+          const response = await fetch('http://127.0.0.1:8000/visualregressions', {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({
+              image: comparisonBase64,
+            }),
+          });
 
-      const result = await response.json();
-      console.log('UI Validation result:', result);
-      
-      setValidationResults(result);
+          const result = await response.json();
+          console.log('Visual Regression result:', result);
+          setVisualRegressionResults(result);
+
+          setProgressChecks(prev => prev.map(check => 
+            check.id === 'visualRegressions' 
+              ? { ...check, status: 'completed' } 
+              : check
+          ));
+        } catch (error) {
+          console.error('Error in visual regressions check:', error);
+          alert('Error checking visual regressions. Please try again.');
+          setIsValidating(false);
+          return;
+        }
+      }
+
+      // Step 2: UI Comparison Check
+      if (selectedChecks.missingElements) {
+        setProgressChecks(prev => prev.map(check => 
+          check.id === 'missingElements' 
+            ? { ...check, status: 'loading' } 
+            : check
+        ));
+
+        try {
+          const formData = new FormData();
+          formData.append('baseline_image', referenceUI.file);
+          formData.append('comparison_image', comparisonUI.file);
+          formData.append('tolerance', '5');
+          formData.append('test_description', 'UI comparison for missing elements and layout shifts');
+
+          const response = await fetch('http://127.0.0.1:8000/uicomparison', {
+            method: 'POST',
+            body: formData,
+          });
+
+          const result = await response.json();
+          console.log('UI Comparison result:', result);
+          setUIComparisonResults(result);
+
+          setProgressChecks(prev => prev.map(check => 
+            check.id === 'missingElements' 
+              ? { ...check, status: 'completed' } 
+              : check
+          ));
+        } catch (error) {
+          console.error('Error in UI comparison check:', error);
+          alert('Error checking missing elements. Please try again.');
+          setIsValidating(false);
+          return;
+        }
+      }
+
     } catch (error) {
       console.error('Error validating UI:', error);
       alert('Error validating UI. Please try again.');
@@ -180,17 +262,17 @@ const VisualQATab = () => {
 
   if (activeMode === 'ui') {
     return (
-      <div className="p-8">
-        <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-8">
-          <h2 className="text-2xl font-bold text-gray-900 mb-6">Validate User Interface</h2>
+      <div className="p-8 bg-gray-900 min-h-screen">
+        <div className="bg-gray-800 rounded-xl shadow-sm border border-gray-700 p-8">
+          <h2 className="text-2xl font-bold text-white mb-6">Validate User Interface</h2>
           
           {/* Upload Sections */}
           <div className="grid grid-cols-2 gap-6 mb-8">
             {/* Reference UI Section */}
             <div>
-              <h3 className="text-lg font-semibold text-gray-900 mb-4">Reference UI</h3>
+              <h3 className="text-lg font-semibold text-white mb-4">Reference UI</h3>
               <label className="block">
-                <div className="border-2 border-dashed border-gray-300 rounded-lg p-6 text-center cursor-pointer hover:border-blue-500 transition-colors">
+                <div className="border-2 border-dashed border-gray-600 rounded-lg p-6 text-center cursor-pointer hover:border-blue-400 transition-colors bg-gray-700">
                   {referenceUI ? (
                     <div className="relative">
                       <img
@@ -211,8 +293,8 @@ const VisualQATab = () => {
                   ) : (
                     <>
                       <div className="text-4xl mb-2">📸</div>
-                      <div className="text-sm text-gray-600 mb-1">Upload Reference UI</div>
-                      <div className="text-xs text-gray-500">Click to upload or drag and drop</div>
+                      <div className="text-sm text-gray-300 mb-1">Upload Reference UI</div>
+                      <div className="text-xs text-gray-400">Click to upload or drag and drop</div>
                     </>
                   )}
                   <input
@@ -227,9 +309,9 @@ const VisualQATab = () => {
 
             {/* Comparison UI Section */}
             <div>
-              <h3 className="text-lg font-semibold text-gray-900 mb-4">Comparison UI</h3>
+              <h3 className="text-lg font-semibold text-white mb-4">Comparison UI</h3>
               <label className="block">
-                <div className="border-2 border-dashed border-gray-300 rounded-lg p-6 text-center cursor-pointer hover:border-blue-500 transition-colors">
+                <div className="border-2 border-dashed border-gray-600 rounded-lg p-6 text-center cursor-pointer hover:border-blue-400 transition-colors bg-gray-700">
                   {comparisonUI ? (
                     <div className="relative">
                       <img
@@ -250,8 +332,8 @@ const VisualQATab = () => {
                   ) : (
                     <>
                       <div className="text-4xl mb-2">📸</div>
-                      <div className="text-sm text-gray-600 mb-1">Upload Comparison UI</div>
-                      <div className="text-xs text-gray-500">Click to upload or drag and drop</div>
+                      <div className="text-sm text-gray-300 mb-1">Upload Comparison UI</div>
+                      <div className="text-xs text-gray-400">Click to upload or drag and drop</div>
                     </>
                   )}
                   <input
@@ -265,87 +347,123 @@ const VisualQATab = () => {
             </div>
           </div>
 
-          {/* Check Options */}
-          <div className="mb-8">
-            <h3 className="text-lg font-semibold text-gray-900 mb-4">Select Checks</h3>
-            <div className="space-y-4">
-              {/* Visual Regressions Check */}
-              <div
-                onClick={() => handleCheckToggle('visualRegressions')}
-                className={`border-2 rounded-lg p-4 cursor-pointer transition-all ${
-                  selectedChecks.visualRegressions
-                    ? 'border-blue-500 bg-blue-50'
-                    : 'border-gray-300 hover:border-gray-400'
-                }`}
-              >
-                <div className="flex items-start gap-3">
-                  <div className={`w-5 h-5 rounded border-2 flex items-center justify-center mt-0.5 ${
-                    selectedChecks.visualRegressions
-                      ? 'bg-blue-600 border-blue-600'
-                      : 'border-gray-400'
-                  }`}>
-                    {selectedChecks.visualRegressions && (
-                      <svg className="w-3 h-3 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M5 13l4 4L19 7" />
-                      </svg>
-                    )}
+          {/* Check Options - Only show if not validating */}
+          {!isValidating && progressChecks.length === 0 && (
+            <>
+              <div className="mb-8">
+                <h3 className="text-lg font-semibold text-white mb-4">Select Checks</h3>
+                <div className="space-y-4">
+                  {/* Visual Regressions Check */}
+                  <div
+                    onClick={() => handleCheckToggle('visualRegressions')}
+                    className={`border-2 rounded-lg p-4 cursor-pointer transition-all ${
+                      selectedChecks.visualRegressions
+                        ? 'border-blue-400 bg-blue-900/30'
+                        : 'border-gray-600 hover:border-gray-500 bg-gray-700'
+                    }`}
+                  >
+                    <div className="flex items-start gap-3">
+                      <div className={`w-5 h-5 rounded border-2 flex items-center justify-center mt-0.5 ${
+                        selectedChecks.visualRegressions
+                          ? 'bg-blue-500 border-blue-500'
+                          : 'border-gray-500'
+                      }`}>
+                        {selectedChecks.visualRegressions && (
+                          <svg className="w-3 h-3 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M5 13l4 4L19 7" />
+                          </svg>
+                        )}
+                      </div>
+                      <div className="flex-1">
+                        <h4 className="font-semibold text-white mb-1">1. Detect visual regressions</h4>
+                        <p className="text-sm text-gray-300">Wanna check any broken elements or overlap in UI?</p>
+                      </div>
+                    </div>
                   </div>
-                  <div className="flex-1">
-                    <h4 className="font-semibold text-gray-900 mb-1">1. Detect visual regressions</h4>
-                    <p className="text-sm text-gray-600">Wanna check any broken elements or overlap in UI?</p>
+
+                  {/* Missing Elements Check */}
+                  <div
+                    onClick={() => handleCheckToggle('missingElements')}
+                    className={`border-2 rounded-lg p-4 cursor-pointer transition-all ${
+                      selectedChecks.missingElements
+                        ? 'border-blue-400 bg-blue-900/30'
+                        : 'border-gray-600 hover:border-gray-500 bg-gray-700'
+                    }`}
+                  >
+                    <div className="flex items-start gap-3">
+                      <div className={`w-5 h-5 rounded border-2 flex items-center justify-center mt-0.5 ${
+                        selectedChecks.missingElements
+                          ? 'bg-blue-500 border-blue-500'
+                          : 'border-gray-500'
+                      }`}>
+                        {selectedChecks.missingElements && (
+                          <svg className="w-3 h-3 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M5 13l4 4L19 7" />
+                          </svg>
+                        )}
+                      </div>
+                      <div className="flex-1">
+                        <h4 className="font-semibold text-white mb-1">2. Missing elements / layout shifts</h4>
+                        <p className="text-sm text-gray-300">Wanna check missing elements / layout shifts?</p>
+                      </div>
+                    </div>
                   </div>
                 </div>
               </div>
 
-              {/* Missing Elements Check */}
-              <div
-                onClick={() => handleCheckToggle('missingElements')}
-                className={`border-2 rounded-lg p-4 cursor-pointer transition-all ${
-                  selectedChecks.missingElements
-                    ? 'border-blue-500 bg-blue-50'
-                    : 'border-gray-300 hover:border-gray-400'
-                }`}
-              >
-                <div className="flex items-start gap-3">
-                  <div className={`w-5 h-5 rounded border-2 flex items-center justify-center mt-0.5 ${
-                    selectedChecks.missingElements
-                      ? 'bg-blue-600 border-blue-600'
-                      : 'border-gray-400'
-                  }`}>
-                    {selectedChecks.missingElements && (
-                      <svg className="w-3 h-3 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M5 13l4 4L19 7" />
-                      </svg>
-                    )}
-                  </div>
-                  <div className="flex-1">
-                    <h4 className="font-semibold text-gray-900 mb-1">2. Missing elements / layout shifts</h4>
-                    <p className="text-sm text-gray-600">Wanna check missing elements / layout shifts?</p>
-                  </div>
-                </div>
+              {/* Get Report Button */}
+              <div className="flex justify-center">
+                <button
+                  onClick={handleGetReport}
+                  disabled={!referenceUI || !comparisonUI}
+                  className="bg-blue-600 text-white px-8 py-3 rounded-lg font-medium hover:bg-blue-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                >
+                  Get Report
+                </button>
               </div>
-            </div>
-          </div>
+            </>
+          )}
 
-          {/* Get Report Button */}
-          <div className="flex justify-center">
-            <button
-              onClick={handleGetReport}
-              disabled={isValidating || !referenceUI || !comparisonUI}
-              className="bg-blue-600 text-white px-8 py-3 rounded-lg font-medium hover:bg-blue-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-            >
-              {isValidating ? 'Generating Report...' : 'Get Report'}
-            </button>
-          </div>
+          {/* Progress Indicator */}
+          {progressChecks.length > 0 && (
+            <ValidationProgress checks={progressChecks} />
+          )}
 
           {/* Validation Results */}
-          {validationResults && (
-            <div className="mt-8 space-y-6">
-              <div className="bg-gradient-to-r from-blue-50 to-indigo-50 rounded-xl p-6 border border-blue-200">
-                <h3 className="text-xl font-bold text-gray-900 mb-4">UI Validation Report</h3>
-                <pre className="text-sm text-gray-700 whitespace-pre-wrap">
-                  {JSON.stringify(validationResults, null, 2)}
-                </pre>
+          {(visualRegressionResults || uiComparisonResults) && (
+            <div className="mt-8 space-y-8">
+              {/* Visual Regression Results */}
+              {visualRegressionResults && (
+                <div>
+                  <h2 className="text-2xl font-bold text-white mb-4">Visual Regression Analysis</h2>
+                  <VisualRegressionResults results={visualRegressionResults} />
+                </div>
+              )}
+
+              {/* UI Comparison Results */}
+              {uiComparisonResults && (
+                <div>
+                  <h2 className="text-2xl font-bold text-white mb-4">UI Comparison Analysis</h2>
+                  <UIComparisonResults results={uiComparisonResults} />
+                </div>
+              )}
+
+              {/* Reset Button */}
+              <div className="flex justify-center pt-6">
+                <button
+                  onClick={() => {
+                    setActiveMode(null);
+                    setReferenceUI(null);
+                    setComparisonUI(null);
+                    setSelectedChecks({ visualRegressions: false, missingElements: false });
+                    setProgressChecks([]);
+                    setVisualRegressionResults(null);
+                    setUIComparisonResults(null);
+                  }}
+                  className="bg-gray-700 text-white px-8 py-3 rounded-lg font-medium hover:bg-gray-600 transition-colors"
+                >
+                  Start New Validation
+                </button>
               </div>
             </div>
           )}
@@ -356,17 +474,17 @@ const VisualQATab = () => {
 
   if (activeMode === 'ux') {
     return (
-      <div className="p-8">
-        <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-8">
-          <h2 className="text-2xl font-bold text-gray-900 mb-6">Upload UX Flow Screens</h2>
+      <div className="p-8 bg-gray-900 min-h-screen">
+        <div className="bg-gray-800 rounded-xl shadow-sm border border-gray-700 p-8">
+          <h2 className="text-2xl font-bold text-white mb-6">Upload UX Flow Screens</h2>
           
           {/* Upload Area */}
           <div className="mb-6">
             <label className="block mb-4">
-              <div className="border-2 border-dashed border-gray-300 rounded-lg p-8 text-center cursor-pointer hover:border-blue-500 transition-colors">
+              <div className="border-2 border-dashed border-gray-600 rounded-lg p-8 text-center cursor-pointer hover:border-blue-400 transition-colors bg-gray-700">
                 <div className="text-4xl mb-2">📸</div>
-                <div className="text-sm text-gray-600 mb-1">Click to upload or drag and drop</div>
-                <div className="text-xs text-gray-500">Upload screens in order from start to end</div>
+                <div className="text-sm text-gray-300 mb-1">Click to upload or drag and drop</div>
+                <div className="text-xs text-gray-400">Upload screens in order from start to end</div>
                 <input
                   type="file"
                   className="hidden"
@@ -382,7 +500,7 @@ const VisualQATab = () => {
           {uxScreens.length > 0 && (
             <>
               <div className="mb-4">
-                <h3 className="text-lg font-semibold text-gray-900">
+                <h3 className="text-lg font-semibold text-white">
                   Uploaded Screens ({uxScreens.length})
                 </h3>
               </div>
@@ -390,7 +508,7 @@ const VisualQATab = () => {
               <div className="grid grid-cols-4 gap-4 mb-6">
                 {uxScreens.map((screen, index) => (
                   <div key={screen.id} className="relative group">
-                    <div className="border border-gray-200 rounded-lg overflow-hidden">
+                    <div className="border border-gray-600 rounded-lg overflow-hidden bg-gray-700">
                       <img
                         src={screen.preview}
                         alt={`Screen ${index + 1}`}
@@ -769,19 +887,19 @@ const VisualQATab = () => {
   }
 
   return (
-    <div className="p-8">
+    <div className="p-8 bg-gray-900 min-h-screen">
       <div className="grid grid-cols-2 gap-6">
         {/* Validate UX Card */}
-        <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-8 flex flex-col">
-          <h2 className="text-2xl font-bold text-gray-900 mb-3">Validate UX</h2>
-          <h3 className="text-lg font-semibold text-gray-700 mb-4">Validate User Experience?</h3>
-          <p className="text-gray-600 mb-auto">
+        <div className="bg-gray-800 rounded-xl shadow-sm border border-gray-700 p-8 flex flex-col">
+          <h2 className="text-2xl font-bold text-white mb-3">Validate UX</h2>
+          <h3 className="text-lg font-semibold text-gray-200 mb-4">Validate User Experience?</h3>
+          <p className="text-gray-300 mb-auto">
             Give your UI shots, we gonna handle the user flow with clear insights
           </p>
           <div className="flex justify-end mt-6">
             <button
               onClick={() => handleGetStarted('ux')}
-              className="bg-blue-600 text-white px-6 py-2.5 rounded-lg font-medium hover:bg-blue-700 transition-colors"
+              className="bg-blue-600 text-white px-6 py-2.5 rounded-lg font-medium hover:bg-blue-500 transition-colors"
             >
               Get Started
             </button>
@@ -789,16 +907,16 @@ const VisualQATab = () => {
         </div>
 
         {/* Validate UI Card */}
-        <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-8 flex flex-col">
-          <h2 className="text-2xl font-bold text-gray-900 mb-3">Validate UI</h2>
-          <h3 className="text-lg font-semibold text-gray-700 mb-4">Validate User Interface</h3>
-          <p className="text-gray-600 mb-auto">
+        <div className="bg-gray-800 rounded-xl shadow-sm border border-gray-700 p-8 flex flex-col">
+          <h2 className="text-2xl font-bold text-white mb-3">Validate UI</h2>
+          <h3 className="text-lg font-semibold text-gray-200 mb-4">Validate User Interface</h3>
+          <p className="text-gray-300 mb-auto">
             Give your UI shots, we gonna handle user interface with clear insights
           </p>
           <div className="flex justify-end mt-6">
             <button
               onClick={() => handleGetStarted('ui')}
-              className="bg-blue-600 text-white px-6 py-2.5 rounded-lg font-medium hover:bg-blue-700 transition-colors"
+              className="bg-blue-600 text-white px-6 py-2.5 rounded-lg font-medium hover:bg-blue-500 transition-colors"
             >
               Get Started
             </button>
