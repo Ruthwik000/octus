@@ -5,6 +5,14 @@ const VisualQATab = () => {
   const [uxScreens, setUxScreens] = useState([]);
   const [isValidating, setIsValidating] = useState(false);
   const [validationResults, setValidationResults] = useState(null);
+  
+  // UI validation states
+  const [referenceUI, setReferenceUI] = useState(null);
+  const [comparisonUI, setComparisonUI] = useState(null);
+  const [selectedChecks, setSelectedChecks] = useState({
+    visualRegressions: false,
+    missingElements: false,
+  });
 
   const handleGetStarted = (mode) => {
     setActiveMode(mode);
@@ -99,6 +107,252 @@ const VisualQATab = () => {
       reader.onerror = (error) => reject(error);
     });
   };
+
+  const handleReferenceUpload = (e) => {
+    const file = e.target.files[0];
+    if (file) {
+      setReferenceUI({
+        file,
+        preview: URL.createObjectURL(file),
+      });
+    }
+  };
+
+  const handleComparisonUpload = (e) => {
+    const file = e.target.files[0];
+    if (file) {
+      setComparisonUI({
+        file,
+        preview: URL.createObjectURL(file),
+      });
+    }
+  };
+
+  const handleCheckToggle = (checkType) => {
+    setSelectedChecks((prev) => ({
+      ...prev,
+      [checkType]: !prev[checkType],
+    }));
+  };
+
+  const handleGetReport = async () => {
+    if (!referenceUI || !comparisonUI) {
+      alert('Please upload both reference and comparison UI images');
+      return;
+    }
+
+    if (!selectedChecks.visualRegressions && !selectedChecks.missingElements) {
+      alert('Please select at least one check to perform');
+      return;
+    }
+
+    setIsValidating(true);
+
+    try {
+      const referenceBase64 = await fileToBase64(referenceUI.file);
+      const comparisonBase64 = await fileToBase64(comparisonUI.file);
+
+      const payload = {
+        referenceImage: referenceBase64,
+        comparisonImage: comparisonBase64,
+        checks: selectedChecks,
+      };
+
+      const response = await fetch('http://127.0.0.1:8000/validateui', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(payload),
+      });
+
+      const result = await response.json();
+      console.log('UI Validation result:', result);
+      
+      setValidationResults(result);
+    } catch (error) {
+      console.error('Error validating UI:', error);
+      alert('Error validating UI. Please try again.');
+    } finally {
+      setIsValidating(false);
+    }
+  };
+
+  if (activeMode === 'ui') {
+    return (
+      <div className="p-8">
+        <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-8">
+          <h2 className="text-2xl font-bold text-gray-900 mb-6">Validate User Interface</h2>
+          
+          {/* Upload Sections */}
+          <div className="grid grid-cols-2 gap-6 mb-8">
+            {/* Reference UI Section */}
+            <div>
+              <h3 className="text-lg font-semibold text-gray-900 mb-4">Reference UI</h3>
+              <label className="block">
+                <div className="border-2 border-dashed border-gray-300 rounded-lg p-6 text-center cursor-pointer hover:border-blue-500 transition-colors">
+                  {referenceUI ? (
+                    <div className="relative">
+                      <img
+                        src={referenceUI.preview}
+                        alt="Reference UI"
+                        className="w-full h-48 object-contain rounded"
+                      />
+                      <button
+                        onClick={(e) => {
+                          e.preventDefault();
+                          setReferenceUI(null);
+                        }}
+                        className="absolute top-2 right-2 bg-red-500 text-white text-xs font-semibold px-3 py-1 rounded hover:bg-red-600"
+                      >
+                        Remove
+                      </button>
+                    </div>
+                  ) : (
+                    <>
+                      <div className="text-4xl mb-2">📸</div>
+                      <div className="text-sm text-gray-600 mb-1">Upload Reference UI</div>
+                      <div className="text-xs text-gray-500">Click to upload or drag and drop</div>
+                    </>
+                  )}
+                  <input
+                    type="file"
+                    className="hidden"
+                    accept="image/*"
+                    onChange={handleReferenceUpload}
+                  />
+                </div>
+              </label>
+            </div>
+
+            {/* Comparison UI Section */}
+            <div>
+              <h3 className="text-lg font-semibold text-gray-900 mb-4">Comparison UI</h3>
+              <label className="block">
+                <div className="border-2 border-dashed border-gray-300 rounded-lg p-6 text-center cursor-pointer hover:border-blue-500 transition-colors">
+                  {comparisonUI ? (
+                    <div className="relative">
+                      <img
+                        src={comparisonUI.preview}
+                        alt="Comparison UI"
+                        className="w-full h-48 object-contain rounded"
+                      />
+                      <button
+                        onClick={(e) => {
+                          e.preventDefault();
+                          setComparisonUI(null);
+                        }}
+                        className="absolute top-2 right-2 bg-red-500 text-white text-xs font-semibold px-3 py-1 rounded hover:bg-red-600"
+                      >
+                        Remove
+                      </button>
+                    </div>
+                  ) : (
+                    <>
+                      <div className="text-4xl mb-2">📸</div>
+                      <div className="text-sm text-gray-600 mb-1">Upload Comparison UI</div>
+                      <div className="text-xs text-gray-500">Click to upload or drag and drop</div>
+                    </>
+                  )}
+                  <input
+                    type="file"
+                    className="hidden"
+                    accept="image/*"
+                    onChange={handleComparisonUpload}
+                  />
+                </div>
+              </label>
+            </div>
+          </div>
+
+          {/* Check Options */}
+          <div className="mb-8">
+            <h3 className="text-lg font-semibold text-gray-900 mb-4">Select Checks</h3>
+            <div className="space-y-4">
+              {/* Visual Regressions Check */}
+              <div
+                onClick={() => handleCheckToggle('visualRegressions')}
+                className={`border-2 rounded-lg p-4 cursor-pointer transition-all ${
+                  selectedChecks.visualRegressions
+                    ? 'border-blue-500 bg-blue-50'
+                    : 'border-gray-300 hover:border-gray-400'
+                }`}
+              >
+                <div className="flex items-start gap-3">
+                  <div className={`w-5 h-5 rounded border-2 flex items-center justify-center mt-0.5 ${
+                    selectedChecks.visualRegressions
+                      ? 'bg-blue-600 border-blue-600'
+                      : 'border-gray-400'
+                  }`}>
+                    {selectedChecks.visualRegressions && (
+                      <svg className="w-3 h-3 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M5 13l4 4L19 7" />
+                      </svg>
+                    )}
+                  </div>
+                  <div className="flex-1">
+                    <h4 className="font-semibold text-gray-900 mb-1">1. Detect visual regressions</h4>
+                    <p className="text-sm text-gray-600">Wanna check any broken elements or overlap in UI?</p>
+                  </div>
+                </div>
+              </div>
+
+              {/* Missing Elements Check */}
+              <div
+                onClick={() => handleCheckToggle('missingElements')}
+                className={`border-2 rounded-lg p-4 cursor-pointer transition-all ${
+                  selectedChecks.missingElements
+                    ? 'border-blue-500 bg-blue-50'
+                    : 'border-gray-300 hover:border-gray-400'
+                }`}
+              >
+                <div className="flex items-start gap-3">
+                  <div className={`w-5 h-5 rounded border-2 flex items-center justify-center mt-0.5 ${
+                    selectedChecks.missingElements
+                      ? 'bg-blue-600 border-blue-600'
+                      : 'border-gray-400'
+                  }`}>
+                    {selectedChecks.missingElements && (
+                      <svg className="w-3 h-3 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M5 13l4 4L19 7" />
+                      </svg>
+                    )}
+                  </div>
+                  <div className="flex-1">
+                    <h4 className="font-semibold text-gray-900 mb-1">2. Missing elements / layout shifts</h4>
+                    <p className="text-sm text-gray-600">Wanna check missing elements / layout shifts?</p>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          {/* Get Report Button */}
+          <div className="flex justify-center">
+            <button
+              onClick={handleGetReport}
+              disabled={isValidating || !referenceUI || !comparisonUI}
+              className="bg-blue-600 text-white px-8 py-3 rounded-lg font-medium hover:bg-blue-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+            >
+              {isValidating ? 'Generating Report...' : 'Get Report'}
+            </button>
+          </div>
+
+          {/* Validation Results */}
+          {validationResults && (
+            <div className="mt-8 space-y-6">
+              <div className="bg-gradient-to-r from-blue-50 to-indigo-50 rounded-xl p-6 border border-blue-200">
+                <h3 className="text-xl font-bold text-gray-900 mb-4">UI Validation Report</h3>
+                <pre className="text-sm text-gray-700 whitespace-pre-wrap">
+                  {JSON.stringify(validationResults, null, 2)}
+                </pre>
+              </div>
+            </div>
+          )}
+        </div>
+      </div>
+    );
+  }
 
   if (activeMode === 'ux') {
     return (
