@@ -1,13 +1,29 @@
 import { useState, useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { getProjectTasks, createTask, updateTask, deleteTask } from '../../services/taskService';
+import DataImportModal from '../DataImportModal';
+import ColumnManager from './ColumnManager';
 
 const PlanningTab = ({ projectId }) => {
+  const navigate = useNavigate();
   const [tasks, setTasks] = useState([]);
   const [loading, setLoading] = useState(true);
   const [showModal, setShowModal] = useState(false);
+  const [showImportModal, setShowImportModal] = useState(false);
+  const [showColumnManager, setShowColumnManager] = useState(false);
   const [showRiskDrawer, setShowRiskDrawer] = useState(false);
   const [selectedTask, setSelectedTask] = useState(null);
   const [editingTask, setEditingTask] = useState(null);
+  const [editingCell, setEditingCell] = useState(null); // { taskId, field }
+  const [editValue, setEditValue] = useState('');
+  const [columns, setColumns] = useState([
+    { id: 'name', label: 'Task Name', type: 'text', required: true, editable: true },
+    { id: 'assignee', label: 'Assignee', type: 'text', required: false, editable: true },
+    { id: 'dueDate', label: 'Due Date', type: 'date', required: false, editable: true },
+    { id: 'storyPoints', label: 'Story Points', type: 'number', required: false, editable: true },
+    { id: 'risk', label: 'Risk', type: 'calculated', required: false, editable: false },
+    { id: 'status', label: 'Status', type: 'select', required: false, editable: true }
+  ]);
   const [formData, setFormData] = useState({
     name: '',
     assignee: '',
@@ -18,7 +34,20 @@ const PlanningTab = ({ projectId }) => {
 
   useEffect(() => {
     loadTasks();
+    loadColumns();
   }, [projectId]);
+
+  const loadColumns = () => {
+    const savedColumns = localStorage.getItem(`project_${projectId}_columns`);
+    if (savedColumns) {
+      setColumns(JSON.parse(savedColumns));
+    }
+  };
+
+  const saveColumns = (newColumns) => {
+    setColumns(newColumns);
+    localStorage.setItem(`project_${projectId}_columns`, JSON.stringify(newColumns));
+  };
 
   const loadTasks = async () => {
     try {
@@ -72,6 +101,121 @@ const PlanningTab = ({ projectId }) => {
     }
   };
 
+  const handleImportTasks = async (importedTasks) => {
+    try {
+      for (const task of importedTasks) {
+        await createTask(task);
+      }
+      loadTasks();
+    } catch (err) {
+      console.error(err);
+      alert('Failed to import some tasks');
+    }
+  };
+
+  const startEditing = (taskId, field, currentValue) => {
+    setEditingCell({ taskId, field });
+    setEditValue(currentValue || '');
+  };
+
+  const cancelEditing = () => {
+    setEditingCell(null);
+    setEditValue('');
+  };
+
+  const saveInlineEdit = async (taskId) => {
+    if (!editingCell) return;
+    
+    try {
+      await updateTask(taskId, {
+        [editingCell.field]: editValue
+      });
+      setEditingCell(null);
+      setEditValue('');
+      loadTasks();
+    } catch (err) {
+      console.error(err);
+      alert('Failed to update task');
+    }
+  };
+
+  const handleKeyPress = (e, taskId) => {
+    if (e.key === 'Enter') {
+      saveInlineEdit(taskId);
+    } else if (e.key === 'Escape') {
+      cancelEditing();
+    }
+  };
+
+  const renderCell = (task, column) => {
+    const value = task[column.id];
+    const isEditing = editingCell?.taskId === task.id && editingCell?.field === column.id;
+
+    if (column.id === 'risk') {
+      return getRiskBadge(task.storyPoints);
+    }
+
+    if (column.id === 'status') {
+      if (isEditing) {
+        return (
+          <select
+            value={editValue}
+            onChange={(e) => setEditValue(e.target.value)}
+            onBlur={() => saveInlineEdit(task.id)}
+            autoFocus
+            className="px-2 py-1 bg-dark-800 border-2 border-primary-500 rounded text-white focus:outline-none"
+            style={{ color: '#ffffff', WebkitTextFillColor: '#ffffff' }}
+          >
+            <option value="todo" style={{ backgroundColor: '#1e293b', color: '#ffffff' }}>To Do</option>
+            <option value="in-progress" style={{ backgroundColor: '#1e293b', color: '#ffffff' }}>In Progress</option>
+            <option value="done" style={{ backgroundColor: '#1e293b', color: '#ffffff' }}>Done</option>
+          </select>
+        );
+      }
+      return getStatusBadge(value);
+    }
+
+    if (column.id === 'assignee' && !isEditing) {
+      return (
+        <div className="flex items-center space-x-2 hover:text-primary-400 transition-colors">
+          <div className="w-8 h-8 bg-gradient-to-br from-primary-500 to-primary-700 rounded-lg flex items-center justify-center text-white text-xs font-semibold">
+            {value?.[0]?.toUpperCase() || '?'}
+          </div>
+          <span className="text-sm text-dark-300">{value || 'Unassigned'}</span>
+        </div>
+      );
+    }
+
+    if (isEditing) {
+      const inputType = column.type === 'number' ? 'number' : 
+                       column.type === 'date' ? 'date' : 
+                       column.type === 'percentage' ? 'number' : 'text';
+      
+      return (
+        <input
+          type={inputType}
+          value={editValue}
+          onChange={(e) => setEditValue(e.target.value)}
+          onBlur={() => saveInlineEdit(task.id)}
+          onKeyDown={(e) => handleKeyPress(e, task.id)}
+          autoFocus
+          min={column.type === 'percentage' ? 0 : undefined}
+          max={column.type === 'percentage' ? 100 : undefined}
+          className="w-full px-2 py-1 bg-dark-800 border-2 border-primary-500 rounded text-white focus:outline-none"
+          style={{ 
+            color: '#ffffff',
+            WebkitTextFillColor: '#ffffff',
+            caretColor: '#ffffff',
+            colorScheme: column.type === 'date' ? 'dark' : 'normal'
+          }}
+        />
+      );
+    }
+
+    const displayValue = column.type === 'percentage' && value ? `${value}%` : value || '-';
+    return <span className="hover:text-primary-400 transition-colors">{displayValue}</span>;
+  };
+
   const handleTaskClick = (task) => {
     setSelectedTask(task);
     setShowRiskDrawer(true);
@@ -103,6 +247,12 @@ const PlanningTab = ({ projectId }) => {
 
   const avgRisk = tasks.length > 0 ? Math.floor(tasks.reduce((acc, t) => acc + getRiskScore(t.storyPoints), 0) / tasks.length) : 0;
   const highRiskTasks = tasks.filter(t => getRiskScore(t.storyPoints) > 70).length;
+  const totalTasks = tasks.length;
+  const completedTasks = tasks.filter(t => t.status === 'done').length;
+  const inProgressTasks = tasks.filter(t => t.status === 'in-progress').length;
+  
+  // Calculate predicted delay based on high-risk tasks
+  const predictedDelay = Math.floor(highRiskTasks * 0.5); // Each high-risk task adds 0.5 days delay
 
   if (loading) return (
     <div className="flex items-center justify-center h-full">
@@ -141,7 +291,7 @@ const PlanningTab = ({ projectId }) => {
               </svg>
             </div>
           </div>
-          <div className="text-4xl font-bold text-danger-500 mb-2">+3</div>
+          <div className="text-4xl font-bold text-danger-500 mb-2">+{predictedDelay}</div>
           <div className="text-sm font-medium text-dark-400">days</div>
         </div>
 
@@ -167,7 +317,7 @@ const PlanningTab = ({ projectId }) => {
               </svg>
             </div>
           </div>
-          <div className="text-4xl font-bold text-white mb-2">{tasks.length}</div>
+          <div className="text-4xl font-bold text-white mb-2">{totalTasks}</div>
           <div className="text-sm font-medium text-dark-400">active</div>
         </div>
       </div>
@@ -186,9 +336,20 @@ const PlanningTab = ({ projectId }) => {
               <span className="px-2 py-1 bg-primary-500/20 text-primary-400 rounded-lg text-xs font-semibold">Live Analysis</span>
             </div>
             <p className="text-dark-200 leading-relaxed">
-              Project is at <span className="text-warning-500 font-semibold">Moderate Risk ({avgRisk}%)</span>. 
-              {highRiskTasks > 0 && <> <span className="text-danger-500 font-semibold">{highRiskTasks} tasks</span> likely to slip.</>}
-              {' '}Recommended to reprioritize high-complexity items and review resource allocation.
+              {totalTasks === 0 ? (
+                'No tasks yet. Add tasks to get AI-powered insights and recommendations.'
+              ) : (
+                <>
+                  Project is at <span className={`font-semibold ${avgRisk > 70 ? 'text-danger-500' : avgRisk > 40 ? 'text-warning-500' : 'text-success-500'}`}>
+                    {avgRisk > 70 ? 'High' : avgRisk > 40 ? 'Moderate' : 'Low'} Risk ({avgRisk}%)
+                  </span>.
+                  {highRiskTasks > 0 && <> <span className="text-danger-500 font-semibold">{highRiskTasks} tasks</span> likely to slip.</>}
+                  {' '}
+                  {completedTasks > 0 && <span className="text-success-500 font-semibold">{completedTasks} completed</span>}
+                  {inProgressTasks > 0 && <>, <span className="text-primary-400 font-semibold">{inProgressTasks} in progress</span></>}.
+                  {highRiskTasks > 2 && ' Recommended to reprioritize high-complexity items and review resource allocation.'}
+                </>
+              )}
             </p>
           </div>
         </div>
@@ -201,58 +362,95 @@ const PlanningTab = ({ projectId }) => {
             <h2 className="text-xl font-semibold text-white">Tasks</h2>
             <p className="text-sm text-dark-400 mt-1">Manage and track project tasks</p>
           </div>
-          <button
-            onClick={() => {
-              setEditingTask(null);
-              setFormData({ name: '', assignee: '', dueDate: '', storyPoints: '', status: 'todo' });
-              setShowModal(true);
-            }}
-            className="bg-gradient-to-r from-primary-600 to-primary-500 text-white px-5 py-2.5 rounded-xl text-sm font-semibold hover:from-primary-500 hover:to-primary-600 transition-all shadow-lg shadow-primary-500/20 flex items-center space-x-2"
-          >
-            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
-            </svg>
-            <span>Add Task</span>
-          </button>
+          <div className="flex items-center space-x-3">
+            <button
+              onClick={() => setShowColumnManager(true)}
+              className="bg-dark-800 border border-dark-700 text-white px-5 py-2.5 rounded-xl text-sm font-semibold hover:bg-dark-700 transition-all flex items-center space-x-2"
+            >
+              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6V4m0 2a2 2 0 100 4m0-4a2 2 0 110 4m-6 8a2 2 0 100-4m0 4a2 2 0 110-4m0 4v2m0-6V4m6 6v10m6-2a2 2 0 100-4m0 4a2 2 0 110-4m0 4v2m0-6V4" />
+              </svg>
+              <span>Manage Columns</span>
+            </button>
+            <button
+              onClick={() => navigate(`/project/${projectId}/ai-analysis`)}
+              className="bg-gradient-to-r from-warning-600 to-warning-500 text-white px-5 py-2.5 rounded-xl text-sm font-semibold hover:from-warning-500 hover:to-warning-600 transition-all shadow-lg shadow-warning-500/20 flex items-center space-x-2"
+            >
+              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9.663 17h4.673M12 3v1m6.364 1.636l-.707.707M21 12h-1M4 12H3m3.343-5.657l-.707-.707m2.828 9.9a5 5 0 117.072 0l-.548.547A3.374 3.374 0 0014 18.469V19a2 2 0 11-4 0v-.531c0-.895-.356-1.754-.988-2.386l-.548-.547z" />
+              </svg>
+              <span>AI Analysis</span>
+            </button>
+            <button
+              onClick={() => setShowImportModal(true)}
+              className="bg-dark-800 border border-dark-700 text-white px-5 py-2.5 rounded-xl text-sm font-semibold hover:bg-dark-700 transition-all flex items-center space-x-2"
+            >
+              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12" />
+              </svg>
+              <span>Import Data</span>
+            </button>
+            <button
+              onClick={() => {
+                setEditingTask(null);
+                setFormData({ name: '', assignee: '', dueDate: '', storyPoints: '', status: 'todo' });
+                setShowModal(true);
+              }}
+              className="bg-gradient-to-r from-primary-600 to-primary-500 text-white px-5 py-2.5 rounded-xl text-sm font-semibold hover:from-primary-500 hover:to-primary-600 transition-all shadow-lg shadow-primary-500/20 flex items-center space-x-2"
+            >
+              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
+              </svg>
+              <span>Add Task</span>
+            </button>
+          </div>
         </div>
 
         <div className="overflow-x-auto">
           <table className="w-full">
             <thead className="bg-dark-900 border-b border-dark-800">
               <tr>
-                <th className="px-6 py-4 text-left text-xs font-semibold text-dark-400 uppercase tracking-wider">Task Name</th>
-                <th className="px-6 py-4 text-left text-xs font-semibold text-dark-400 uppercase tracking-wider">Assignee</th>
-                <th className="px-6 py-4 text-left text-xs font-semibold text-dark-400 uppercase tracking-wider">Due Date</th>
-                <th className="px-6 py-4 text-left text-xs font-semibold text-dark-400 uppercase tracking-wider">Points</th>
-                <th className="px-6 py-4 text-left text-xs font-semibold text-dark-400 uppercase tracking-wider">Risk</th>
-                <th className="px-6 py-4 text-left text-xs font-semibold text-dark-400 uppercase tracking-wider">Status</th>
+                {columns.filter(col => !col.hidden).map((column) => (
+                  <th key={column.id} className="px-6 py-4 text-left text-xs font-semibold text-dark-400 uppercase tracking-wider">
+                    {column.label}
+                  </th>
+                ))}
                 <th className="px-6 py-4 text-left text-xs font-semibold text-dark-400 uppercase tracking-wider">Actions</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-dark-800">
               {tasks.map((task) => (
-                <tr key={task.id} className="hover:bg-dark-900/50 transition-colors cursor-pointer" onClick={() => handleTaskClick(task)}>
-                  <td className="px-6 py-4 text-sm font-medium text-white">{task.name}</td>
+                <tr key={task.id} className="hover:bg-dark-900/50 transition-colors">
+                  {columns.filter(col => !col.hidden).map((column) => (
+                    <td
+                      key={column.id}
+                      className={`px-6 py-4 text-sm ${column.editable ? 'cursor-pointer' : ''} ${
+                        column.id === 'name' ? 'font-medium text-white' : 
+                        column.id === 'storyPoints' ? 'font-semibold text-white' : 
+                        'text-dark-300'
+                      }`}
+                      onClick={() => column.editable && editingCell?.taskId !== task.id && startEditing(task.id, column.id, task[column.id])}
+                    >
+                      {renderCell(task, column)}
+                    </td>
+                  ))}
                   <td className="px-6 py-4">
                     <div className="flex items-center space-x-2">
-                      <div className="w-8 h-8 bg-gradient-to-br from-primary-500 to-primary-700 rounded-lg flex items-center justify-center text-white text-xs font-semibold">
-                        {task.assignee?.[0]?.toUpperCase() || '?'}
-                      </div>
-                      <span className="text-sm text-dark-300">{task.assignee || 'Unassigned'}</span>
-                    </div>
-                  </td>
-                  <td className="px-6 py-4 text-sm text-dark-300">{task.dueDate || '-'}</td>
-                  <td className="px-6 py-4 text-sm font-semibold text-white">{task.storyPoints || 0}</td>
-                  <td className="px-6 py-4">{getRiskBadge(task.storyPoints)}</td>
-                  <td className="px-6 py-4">{getStatusBadge(task.status)}</td>
-                  <td className="px-6 py-4">
-                    <div className="flex items-center space-x-2" onClick={(e) => e.stopPropagation()}>
-                      <button onClick={() => handleEdit(task)} className="text-primary-400 hover:text-primary-300 transition-colors">
+                      <button 
+                        onClick={() => handleTaskClick(task)} 
+                        className="text-primary-400 hover:text-primary-300 transition-colors"
+                        title="View Risk Details"
+                      >
+                        <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                        </svg>
+                      </button>
+                      <button onClick={() => handleEdit(task)} className="text-warning-400 hover:text-warning-300 transition-colors" title="Edit in Modal">
                         <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
                         </svg>
                       </button>
-                      <button onClick={() => handleDelete(task.id)} className="text-danger-500 hover:text-danger-400 transition-colors">
+                      <button onClick={() => handleDelete(task.id)} className="text-danger-500 hover:text-danger-400 transition-colors" title="Delete">
                         <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
                         </svg>
@@ -271,7 +469,13 @@ const PlanningTab = ({ projectId }) => {
                 </svg>
               </div>
               <p className="text-dark-400 text-lg">No tasks yet</p>
-              <p className="text-dark-500 text-sm mt-1">Add your first task to get started</p>
+              <p className="text-dark-500 text-sm mt-1">Add your first task or import from CSV to get started</p>
+              <button
+                onClick={() => setShowImportModal(true)}
+                className="mt-4 px-6 py-2.5 bg-primary-600 text-white rounded-xl hover:bg-primary-700 transition-all font-medium"
+              >
+                Import Sample Data
+              </button>
             </div>
           )}
         </div>
@@ -400,34 +604,85 @@ const PlanningTab = ({ projectId }) => {
               <p className="text-sm text-dark-400">Assigned to: {selectedTask.assignee || 'Unassigned'}</p>
             </div>
 
-            <div className="space-y-4">
-              {[
-                { label: 'Deadline Proximity', value: 25, color: 'warning' },
-                { label: 'Complexity', value: 20, color: 'danger' },
-                { label: 'Dependency Risk', value: 30, color: 'danger' },
-                { label: 'Assignee Overload', value: 15, color: 'warning' }
-              ].map((factor, idx) => (
-                <div key={idx}>
-                  <div className="flex items-center justify-between mb-2">
-                    <span className="text-sm font-medium text-dark-200">{factor.label}</span>
-                    <span className={`text-sm font-bold text-${factor.color}-500`}>+{factor.value}</span>
-                  </div>
-                  <div className="w-full bg-dark-800 rounded-full h-2">
-                    <div 
-                      className={`bg-${factor.color}-500 h-2 rounded-full transition-all`}
-                      style={{ width: `${factor.value}%` }}
-                    ></div>
-                  </div>
-                </div>
-              ))}
+      <div className="grid grid-cols-2 gap-6 mb-6">
+        <div className="card-dark rounded-xl p-6">
+          <div className="flex items-center justify-between mb-3">
+            <h3 className="font-semibold text-white">Current State</h3>
+          </div>
+          <div className="space-y-2">
+            <div className="flex justify-between">
+              <span className="text-dark-300">Assignee:</span>
+              <span className="text-white font-medium">{selectedTask.assignee || 'Unassigned'}</span>
             </div>
-
-            <div className="mt-8 p-6 bg-gradient-to-r from-danger-900/30 to-danger-800/20 border border-danger-500/30 rounded-xl">
-              <div className="text-sm font-medium text-dark-300 mb-2">Total Risk Score</div>
-              <div className="text-5xl font-bold text-danger-500">{getRiskScore(selectedTask.storyPoints)}/100</div>
+            <div className="flex justify-between">
+              <span className="text-dark-300">Story Points:</span>
+              <span className="text-white font-medium">{selectedTask.storyPoints || 0}</span>
+            </div>
+            <div className="flex justify-between">
+              <span className="text-dark-300">Due Date:</span>
+              <span className="text-white font-medium">{selectedTask.dueDate || 'Not set'}</span>
+            </div>
+            <div className="flex justify-between">
+              <span className="text-dark-300">Status:</span>
+              <span className="text-white font-medium capitalize">{selectedTask.status?.replace('-', ' ') || 'To Do'}</span>
             </div>
           </div>
         </div>
+
+        <div className="card-dark rounded-xl p-6">
+          <div className="flex items-center justify-between mb-3">
+            <h3 className="font-semibold text-white">Risk Analysis</h3>
+          </div>
+          <div className="space-y-3">
+            {[
+              { label: 'Complexity', value: Math.min(selectedTask.storyPoints * 10, 40), color: 'danger' },
+              { label: 'Timeline Risk', value: selectedTask.dueDate ? 20 : 30, color: 'warning' },
+              { label: 'Resource Load', value: selectedTask.assignee ? 15 : 25, color: 'warning' }
+            ].map((factor, idx) => (
+              <div key={idx}>
+                <div className="flex items-center justify-between mb-1">
+                  <span className="text-sm font-medium text-dark-200">{factor.label}</span>
+                  <span className={`text-sm font-bold text-${factor.color}-500`}>+{factor.value}</span>
+                </div>
+                <div className="w-full bg-dark-800 rounded-full h-2">
+                  <div 
+                    className={`bg-${factor.color}-500 h-2 rounded-full transition-all`}
+                    style={{ width: `${factor.value}%` }}
+                  ></div>
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      </div>
+
+      <div className="p-6 bg-gradient-to-r from-danger-900/30 to-danger-800/20 border border-danger-500/30 rounded-xl">
+        <div className="text-sm font-medium text-dark-300 mb-2">Total Risk Score</div>
+        <div className="text-5xl font-bold text-danger-500">{getRiskScore(selectedTask.storyPoints)}/100</div>
+        <p className="text-sm text-dark-400 mt-2">
+          Based on complexity, timeline, and resource allocation analysis
+        </p>
+      </div>
+          </div>
+        </div>
+      )}
+
+      {/* Column Manager Modal */}
+      {showColumnManager && (
+        <ColumnManager
+          columns={columns}
+          onSave={saveColumns}
+          onClose={() => setShowColumnManager(false)}
+        />
+      )}
+
+      {/* Import Modal */}
+      {showImportModal && (
+        <DataImportModal
+          onClose={() => setShowImportModal(false)}
+          onImport={handleImportTasks}
+          projectId={projectId}
+        />
       )}
     </div>
   );

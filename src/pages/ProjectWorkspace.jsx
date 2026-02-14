@@ -94,16 +94,6 @@ const ProjectWorkspace = () => {
               </button>
             ))}
           </nav>
-
-          <div className="absolute bottom-0 left-0 right-0 p-4 border-t border-dark-800 bg-dark-900">
-            <div className="bg-dark-800 rounded-xl p-4">
-              <div className="flex items-center space-x-2 mb-2">
-                <div className="w-2 h-2 bg-success-500 rounded-full animate-pulse"></div>
-                <span className="text-xs font-medium text-dark-300">AI Engine Active</span>
-              </div>
-              <p className="text-xs text-dark-500">Real-time analysis enabled</p>
-            </div>
-          </div>
         </aside>
 
         <main className="flex-1 overflow-auto bg-dark-950">

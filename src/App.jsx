@@ -4,6 +4,7 @@ import ProtectedRoute from './components/ProtectedRoute';
 import Login from './pages/Login';
 import Dashboard from './pages/Dashboard';
 import ProjectWorkspace from './pages/ProjectWorkspace';
+import AIAnalysis from './pages/AIAnalysis';
 
 function App() {
   return (
@@ -24,6 +25,14 @@ function App() {
             element={
               <ProtectedRoute>
                 <ProjectWorkspace />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/project/:projectId/ai-analysis"
+            element={
+              <ProtectedRoute>
+                <AIAnalysis />
               </ProtectedRoute>
             }
           />

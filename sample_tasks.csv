@@ -1,0 +1,11 @@
+name,assignee,dueDate,storyPoints,status
+Implement user authentication system,Sarah Johnson,2024-03-15,8,in-progress
+Design database schema for orders,Michael Chen,2024-03-18,5,todo
+Create REST API endpoints,David Martinez,2024-03-20,13,todo
+Build responsive dashboard UI,Emily Rodriguez,2024-03-12,8,in-progress
+Setup CI/CD pipeline,James Wilson,2024-03-25,5,todo
+Implement payment gateway integration,Lisa Anderson,2024-03-22,13,todo
+Write unit tests for auth module,Robert Taylor,2024-03-16,3,in-progress
+Optimize database queries,Jennifer Lee,2024-03-19,5,todo
+Create user documentation,Christopher Brown,2024-03-28,3,todo
+Deploy to production environment,Amanda White,2024-03-30,8,todo
