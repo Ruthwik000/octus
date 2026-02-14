@@ -27,3 +27,11 @@ dist-ssr
 .env
 .env.local
 .env.production
+
+# Backend
+backend/venv/
+backend/__pycache__/
+backend/app/__pycache__/
+**/__pycache__/
+*.db
+backend/.env

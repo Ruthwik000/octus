@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
 import { getUserProjects, createProject } from '../services/projectService';
+import { getProjectTasks } from '../services/taskService';
 import { collection, addDoc } from 'firebase/firestore';
 import { db } from '../config/firebase';
 import Navbar from '../components/Navbar';
@@ -9,6 +10,7 @@ import LoadingSpinner from '../components/LoadingSpinner';
 
 const Dashboard = () => {
   const [projects, setProjects] = useState([]);
+  const [projectMetrics, setProjectMetrics] = useState({});
   const [loading, setLoading] = useState(true);
   const [showModal, setShowModal] = useState(false);
   const [newProject, setNewProject] = useState({ name: '', description: '', tags: '' });
@@ -21,6 +23,8 @@ const Dashboard = () => {
     loadProjects();
   }, [currentUser]);
 
+  const getRiskScore = (points) => Math.min(Math.floor((points || 0) * 10), 100);
+
   const loadProjects = async () => {
     if (!currentUser) return;
     try {
@@ -29,6 +33,31 @@ const Dashboard = () => {
       const data = await getUserProjects(currentUser.uid);
       console.log('Projects loaded:', data);
       setProjects(data);
+      
+      // Load tasks for each project to calculate real metrics
+      const metrics = {};
+      for (const project of data) {
+        try {
+          const tasks = await getProjectTasks(project.id);
+          const highRiskTasks = tasks.filter(t => getRiskScore(t.storyPoints) > 70).length;
+          const avgRisk = tasks.length > 0 
+            ? Math.floor(tasks.reduce((acc, t) => acc + getRiskScore(t.storyPoints), 0) / tasks.length) 
+            : 0;
+          
+          metrics[project.id] = {
+            totalTasks: tasks.length,
+            highRiskTasks,
+            avgRisk,
+            completedTasks: tasks.filter(t => t.status === 'done').length,
+            inProgressTasks: tasks.filter(t => t.status === 'in-progress').length
+          };
+        } catch (err) {
+          console.error(`Error loading tasks for project ${project.id}:`, err);
+          metrics[project.id] = { totalTasks: 0, highRiskTasks: 0, avgRisk: 0, completedTasks: 0, inProgressTasks: 0 };
+        }
+      }
+      
+      setProjectMetrics(metrics);
       setError('');
     } catch (err) {
       console.error('Error loading projects:', err);
@@ -177,9 +206,8 @@ const Dashboard = () => {
 
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
           {filteredProjects.map((project) => {
-            const mockRisk = Math.floor(Math.random() * 100);
-            const mockTasks = Math.floor(Math.random() * 20) + 5;
-            const mockHighRisk = Math.floor(Math.random() * 5);
+            const metrics = projectMetrics[project.id] || { totalTasks: 0, highRiskTasks: 0, avgRisk: 0, completedTasks: 0, inProgressTasks: 0 };
+            const hasActivity = metrics.totalTasks > 0;
             
             return (
               <div
@@ -189,27 +217,36 @@ const Dashboard = () => {
               >
                 <div className="flex items-start justify-between mb-4">
                   <h3 className="text-xl font-semibold text-white group-hover:text-primary-400 transition-colors">{project.name}</h3>
-                  <span className={`px-3 py-1 rounded-lg text-xs font-semibold border ${getRiskColor(mockRisk)}`}>
-                    Risk: {mockRisk}
-                  </span>
+                  {hasActivity && (
+                    <span className={`px-3 py-1 rounded-lg text-xs font-semibold border ${getRiskColor(metrics.avgRisk)}`}>
+                      Risk: {metrics.avgRisk}
+                    </span>
+                  )}
                 </div>
                 
                 <p className="text-dark-300 text-sm mb-6 line-clamp-2">{project.description}</p>
                 
-                <div className="grid grid-cols-3 gap-3 mb-4">
-                  <div className="bg-dark-900 rounded-lg p-3">
-                    <div className="text-xs text-dark-400 mb-1">Total Tasks</div>
-                    <div className="text-lg font-bold text-white">{mockTasks}</div>
+                {hasActivity ? (
+                  <div className="grid grid-cols-3 gap-3 mb-4">
+                    <div className="bg-dark-900 rounded-lg p-3">
+                      <div className="text-xs text-dark-400 mb-1">Total Tasks</div>
+                      <div className="text-lg font-bold text-white">{metrics.totalTasks}</div>
+                    </div>
+                    <div className="bg-dark-900 rounded-lg p-3">
+                      <div className="text-xs text-dark-400 mb-1">High Risk</div>
+                      <div className="text-lg font-bold text-danger-500">{metrics.highRiskTasks}</div>
+                    </div>
+                    <div className="bg-dark-900 rounded-lg p-3">
+                      <div className="text-xs text-dark-400 mb-1">Completed</div>
+                      <div className="text-lg font-bold text-success-500">{metrics.completedTasks}</div>
+                    </div>
                   </div>
-                  <div className="bg-dark-900 rounded-lg p-3">
-                    <div className="text-xs text-dark-400 mb-1">High Risk</div>
-                    <div className="text-lg font-bold text-danger-500">{mockHighRisk}</div>
+                ) : (
+                  <div className="bg-dark-900 rounded-lg p-4 mb-4 text-center">
+                    <div className="text-sm text-dark-500">No tasks yet</div>
+                    <div className="text-xs text-dark-600 mt-1">Click to add tasks</div>
                   </div>
-                  <div className="bg-dark-900 rounded-lg p-3">
-                    <div className="text-xs text-dark-400 mb-1">Status</div>
-                    <div className="text-lg font-bold text-success-500">●</div>
-                  </div>
-                </div>
+                )}
                 
                 <div className="flex items-center justify-between text-xs text-dark-400 pt-4 border-t border-dark-800">
                   <span className="flex items-center space-x-1">
