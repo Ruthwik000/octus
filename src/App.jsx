@@ -6,6 +6,7 @@ import Login from './pages/Login';
 import Dashboard from './pages/Dashboard';
 import ProjectWorkspace from './pages/ProjectWorkspace';
 import AIAnalysis from './pages/AIAnalysis';
+import GitHubCallback from './pages/GitHubCallback';
 
 function App() {
   return (
@@ -38,6 +39,7 @@ function App() {
               </ProtectedRoute>
             }
           />
+          <Route path="/auth/github/callback" element={<GitHubCallback />} />
         </Routes>
       </Router>
     </AuthProvider>

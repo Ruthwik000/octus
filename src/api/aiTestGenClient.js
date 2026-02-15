@@ -1,7 +1,7 @@
 import axios from 'axios';
 
 export const AI_TEST_GEN_BACKEND_URL = (
-  import.meta.env.VITE_AI_TEST_GEN_BACKEND_URL || 'https://threerd-back.onrender.com'
+  import.meta.env.VITE_AI_TEST_GEN_BACKEND_URL || ''
 ).replace(/\/$/, '');
 
 const COMMON_CONFIG = {
