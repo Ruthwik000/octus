@@ -77,10 +77,10 @@ const DataImportModal = ({ onClose, onImport, projectId }) => {
 
   return (
     <div className="fixed inset-0 bg-black/70 backdrop-blur-sm flex items-center justify-center z-50 px-4">
-      <div className="card-dark rounded-2xl shadow-2xl p-8 max-w-3xl w-full animate-slide-up max-h-[90vh] overflow-y-auto">
+      <div className="bg-slate-900/80 backdrop-blur-xl border border-slate-700/50 rounded-2xl shadow-2xl p-8 max-w-3xl w-full animate-slide-up max-h-[90vh] overflow-y-auto">
         <div className="flex items-center justify-between mb-6">
           <h2 className="text-2xl font-bold text-white">Import Tasks</h2>
-          <button onClick={onClose} className="text-dark-400 hover:text-white transition-colors">
+          <button onClick={onClose} className="text-slate-400 hover:text-white transition-colors">
             <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
             </svg>
@@ -93,8 +93,8 @@ const DataImportModal = ({ onClose, onImport, projectId }) => {
             onClick={() => setImportMethod('manual')}
             className={`flex-1 px-4 py-3 rounded-xl font-medium transition-all ${
               importMethod === 'manual'
-                ? 'bg-gradient-to-r from-primary-600 to-primary-500 text-white shadow-lg shadow-primary-500/20'
-                : 'bg-dark-800 text-dark-300 hover:bg-dark-700'
+                ? 'bg-gradient-to-r from-blue-600 to-cyan-600 text-white shadow-lg shadow-blue-900/50'
+                : 'bg-slate-800/50 text-slate-300 hover:bg-slate-800/70 border border-slate-700/50'
             }`}
           >
             Manual Input
@@ -103,8 +103,8 @@ const DataImportModal = ({ onClose, onImport, projectId }) => {
             onClick={() => setImportMethod('csv')}
             className={`flex-1 px-4 py-3 rounded-xl font-medium transition-all ${
               importMethod === 'csv'
-                ? 'bg-gradient-to-r from-primary-600 to-primary-500 text-white shadow-lg shadow-primary-500/20'
-                : 'bg-dark-800 text-dark-300 hover:bg-dark-700'
+                ? 'bg-gradient-to-r from-blue-600 to-cyan-600 text-white shadow-lg shadow-blue-900/50'
+                : 'bg-slate-800/50 text-slate-300 hover:bg-slate-800/70 border border-slate-700/50'
             }`}
           >
             CSV Upload
@@ -113,8 +113,8 @@ const DataImportModal = ({ onClose, onImport, projectId }) => {
             onClick={() => setImportMethod('excel')}
             className={`flex-1 px-4 py-3 rounded-xl font-medium transition-all ${
               importMethod === 'excel'
-                ? 'bg-gradient-to-r from-primary-600 to-primary-500 text-white shadow-lg shadow-primary-500/20'
-                : 'bg-dark-800 text-dark-300 hover:bg-dark-700'
+                ? 'bg-gradient-to-r from-blue-600 to-cyan-600 text-white shadow-lg shadow-blue-900/50'
+                : 'bg-slate-800/50 text-slate-300 hover:bg-slate-800/70 border border-slate-700/50'
             }`}
           >
             Excel Upload
@@ -125,14 +125,14 @@ const DataImportModal = ({ onClose, onImport, projectId }) => {
         {importMethod === 'manual' && (
           <div className="space-y-4">
             <div>
-              <label className="block text-sm font-medium text-dark-200 mb-2">
+              <label className="block text-sm font-medium text-slate-300 mb-2">
                 Enter tasks (one per line: Feature Name, Module, Due Date, Velocity, Bugs, Status)
               </label>
               <textarea
                 value={manualData}
                 onChange={(e) => setManualData(e.target.value)}
                 rows="8"
-                className="w-full px-4 py-3 bg-dark-800 border-2 border-dark-700 rounded-xl placeholder-dark-500 focus:ring-2 focus:ring-primary-500 focus:border-primary-500 transition-all resize-none"
+                className="w-full px-4 py-3 bg-slate-800/30 backdrop-blur-sm border border-slate-700/50 rounded-xl placeholder-slate-500 focus:ring-2 focus:ring-blue-500/50 focus:border-blue-500/50 transition-all resize-none text-white"
                 placeholder="User authentication flow, Login Page, 2026-02-20, 13, 2, in-progress&#10;Dashboard analytics widget, Dashboard, 2026-02-22, 8, 0, in-progress"
                 style={{ 
                   color: '#ffffff',
@@ -143,7 +143,7 @@ const DataImportModal = ({ onClose, onImport, projectId }) => {
             </div>
             <button
               onClick={handleManualParse}
-              className="w-full px-4 py-3 bg-primary-600 text-white rounded-xl hover:bg-primary-700 transition-all font-medium"
+              className="w-full px-4 py-3 bg-gradient-to-r from-blue-600 to-cyan-600 text-white rounded-xl hover:from-blue-500 hover:to-cyan-500 transition-all font-medium shadow-lg shadow-blue-900/50"
             >
               Parse Tasks
             </button>
@@ -153,7 +153,7 @@ const DataImportModal = ({ onClose, onImport, projectId }) => {
         {/* File Upload */}
         {(importMethod === 'csv' || importMethod === 'excel') && (
           <div className="space-y-4">
-            <div className="border-2 border-dashed border-dark-700 rounded-xl p-8 text-center hover:border-primary-500 transition-all">
+            <div className="border-2 border-dashed border-slate-700/50 rounded-xl p-8 text-center hover:border-blue-500/50 transition-all bg-slate-800/20 backdrop-blur-sm">
               <input
                 type="file"
                 accept={importMethod === 'csv' ? '.csv' : '.xlsx,.xls'}
@@ -162,15 +162,15 @@ const DataImportModal = ({ onClose, onImport, projectId }) => {
                 id="file-upload"
               />
               <label htmlFor="file-upload" className="cursor-pointer">
-                <div className="w-16 h-16 bg-primary-500/10 rounded-2xl flex items-center justify-center mx-auto mb-4">
-                  <svg className="w-8 h-8 text-primary-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <div className="w-16 h-16 bg-blue-500/10 rounded-2xl flex items-center justify-center mx-auto mb-4 border border-blue-500/20">
+                  <svg className="w-8 h-8 text-blue-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12" />
                   </svg>
                 </div>
                 <p className="text-white font-medium mb-1">
                   {file ? file.name : `Click to upload ${importMethod.toUpperCase()}`}
                 </p>
-                <p className="text-dark-400 text-sm">
+                <p className="text-slate-400 text-sm">
                   Expected columns: Feature Name, Module, Due Date, Velocity, Bugs, Status
                 </p>
               </label>
@@ -182,16 +182,16 @@ const DataImportModal = ({ onClose, onImport, projectId }) => {
         {parsedTasks.length > 0 && (
           <div className="mt-6">
             <h3 className="text-lg font-semibold text-white mb-3">Preview ({parsedTasks.length} tasks)</h3>
-            <div className="bg-dark-900 rounded-xl p-4 max-h-60 overflow-y-auto">
+            <div className="bg-slate-800/30 backdrop-blur-sm border border-slate-700/50 rounded-xl p-4 max-h-60 overflow-y-auto">
               {parsedTasks.map((task, index) => (
-                <div key={index} className="flex items-center justify-between py-2 border-b border-dark-800 last:border-0">
+                <div key={index} className="flex items-center justify-between py-2 border-b border-slate-800/50 last:border-0">
                   <div className="flex-1">
                     <div className="text-white font-medium">{task.name}</div>
-                    <div className="text-dark-400 text-sm">
+                    <div className="text-slate-400 text-sm">
                       {task.module} • {task.dueDate} • {task.velocity} velocity • {task.bugs} bugs
                     </div>
                   </div>
-                  <span className="px-2 py-1 bg-primary-500/10 text-primary-400 rounded text-xs">
+                  <span className="px-2 py-1 bg-blue-500/10 text-blue-400 rounded text-xs border border-blue-500/20">
                     {task.status}
                   </span>
                 </div>
@@ -204,14 +204,14 @@ const DataImportModal = ({ onClose, onImport, projectId }) => {
         <div className="flex space-x-3 mt-6">
           <button
             onClick={onClose}
-            className="flex-1 px-4 py-3 border border-dark-700 rounded-xl text-dark-300 hover:bg-dark-800 hover:text-white transition-all"
+            className="flex-1 px-4 py-3 border border-slate-700/50 rounded-xl text-slate-300 hover:bg-slate-800/50 hover:text-white transition-all backdrop-blur-sm"
           >
             Cancel
           </button>
           <button
             onClick={handleImport}
             disabled={parsedTasks.length === 0}
-            className="flex-1 px-4 py-3 bg-gradient-to-r from-primary-600 to-primary-500 text-white rounded-xl hover:from-primary-500 hover:to-primary-600 transition-all shadow-lg shadow-primary-500/20 font-semibold disabled:opacity-50 disabled:cursor-not-allowed"
+            className="flex-1 px-4 py-3 bg-gradient-to-r from-blue-600 to-cyan-600 text-white rounded-xl hover:from-blue-500 hover:to-cyan-500 transition-all shadow-lg shadow-blue-900/50 font-semibold disabled:opacity-50 disabled:cursor-not-allowed"
           >
             Import {parsedTasks.length} Tasks
           </button>

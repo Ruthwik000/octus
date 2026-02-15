@@ -545,16 +545,16 @@ const PlanningTab = ({ projectId }) => {
           </table>
           {tasks.length === 0 && (
             <div className="text-center py-16">
-              <div className="inline-flex items-center justify-center w-16 h-16 bg-slate-900 rounded-2xl mb-4">
-                <svg className="w-8 h-8 text-dark-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <div className="inline-flex items-center justify-center w-16 h-16 bg-slate-800/50 backdrop-blur-sm border border-slate-700/50 rounded-2xl mb-4">
+                <svg className="w-8 h-8 text-slate-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" />
                 </svg>
               </div>
               <p className="text-slate-400 text-lg">No tasks yet</p>
-              <p className="text-dark-500 text-sm mt-1">Add your first task or import from CSV to get started</p>
+              <p className="text-slate-500 text-sm mt-1">Add your first task or import from CSV to get started</p>
               <button
                 onClick={() => setShowImportModal(true)}
-                className="mt-4 px-6 py-2.5 bg-primary-600 text-white rounded-xl hover:bg-primary-700 transition-all font-medium"
+                className="mt-4 px-6 py-2.5 bg-gradient-to-r from-blue-600 to-cyan-600 text-white rounded-xl hover:from-blue-500 hover:to-cyan-500 transition-all font-medium shadow-lg shadow-blue-900/50"
               >
                 Import Sample Data
               </button>

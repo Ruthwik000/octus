@@ -52,10 +52,30 @@ const InsightsTab = () => {
 
   const getTrendIcon = (trend) => {
     switch (trend) {
-      case 'increasing': return '📈';
-      case 'decreasing': return '📉';
-      case 'stable': return '➡️';
-      default: return '📊';
+      case 'increasing':
+        return (
+          <svg className="w-5 h-5 text-red-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 7h8m0 0v8m0-8l-8 8-4-4-6 6" />
+          </svg>
+        );
+      case 'decreasing':
+        return (
+          <svg className="w-5 h-5 text-green-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 17h8m0 0V9m0 8l-8-8-4 4-6-6" />
+          </svg>
+        );
+      case 'stable':
+        return (
+          <svg className="w-5 h-5 text-blue-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+          </svg>
+        );
+      default:
+        return (
+          <svg className="w-5 h-5 text-slate-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" />
+          </svg>
+        );
     }
   };
 
@@ -108,7 +128,7 @@ const InsightsTab = () => {
               <button
                 onClick={handleGenerateInsights}
                 disabled={loading}
-                className="px-8 py-4 bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 text-white font-semibold rounded-lg shadow-lg hover:shadow-xl transform hover:scale-105 transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed disabled:transform-none"
+                className="px-8 py-4 bg-gradient-to-r from-blue-600 to-cyan-600 hover:from-blue-500 hover:to-cyan-500 text-white font-semibold rounded-xl shadow-lg shadow-blue-900/50 hover:shadow-xl transform hover:scale-105 transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed disabled:transform-none"
               >
                 <span className="flex items-center space-x-2">
                   {loading ? (
@@ -190,20 +210,38 @@ const InsightsTab = () => {
               </svg>
               <div className="absolute text-3xl font-bold text-white">{readinessScore}%</div>
             </div>
-            <div className={`mt-4 px-4 py-2 rounded-lg font-semibold ${
+            <div className={`mt-4 px-4 py-2 rounded-lg font-semibold flex items-center justify-center space-x-2 ${
               isBlocked 
                 ? 'bg-red-500/10 text-red-400 border border-red-500/20' 
                 : 'bg-green-500/10 text-green-400 border border-green-500/20'
             }`}>
-              {isBlocked ? '🚫 BLOCKED' : '✅ Ready to Release'}
+              {isBlocked ? (
+                <>
+                  <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M18.364 18.364A9 9 0 005.636 5.636m12.728 12.728A9 9 0 015.636 5.636m12.728 12.728L5.636 5.636" />
+                  </svg>
+                  <span>BLOCKED</span>
+                </>
+              ) : (
+                <>
+                  <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+                  </svg>
+                  <span>Ready to Release</span>
+                </>
+              )}
             </div>
           </div>
         </div>
 
         {/* AI Recommendation Card */}
-        <div className="lg:col-span-2 bg-gradient-to-br from-blue-900/20 to-purple-900/20 rounded-xl border border-blue-500/20 p-6">
+        <div className="lg:col-span-2 bg-slate-800/40 backdrop-blur-sm border border-slate-700/50 rounded-xl p-6">
           <div className="flex items-start space-x-3">
-            <div className="text-3xl">🤖</div>
+            <div className="w-10 h-10 bg-blue-500/10 rounded-xl flex items-center justify-center border border-blue-500/20">
+              <svg className="w-6 h-6 text-blue-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9.663 17h4.673M12 3v1m6.364 1.636l-.707.707M21 12h-1M4 12H3m3.343-5.657l-.707-.707m2.828 9.9a5 5 0 117.072 0l-.548.547A3.374 3.374 0 0014 18.469V19a2 2 0 11-4 0v-.531c0-.895-.356-1.754-.988-2.386l-.548-.547z" />
+              </svg>
+            </div>
             <div className="flex-1">
               <div className="font-semibold text-white mb-2">AI Recommendation</div>
               <p className="text-sm text-gray-300 mb-4">
@@ -284,7 +322,11 @@ const InsightsTab = () => {
             </div>
           ) : (
             <div className="text-center py-8 text-gray-500">
-              <div className="text-4xl mb-2">✨</div>
+              <div className="w-12 h-12 bg-slate-800/50 rounded-xl flex items-center justify-center mx-auto mb-2">
+                <svg className="w-6 h-6 text-slate-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+                </svg>
+              </div>
               <p className="text-sm">No hotspots detected</p>
             </div>
           )}
@@ -297,8 +339,18 @@ const InsightsTab = () => {
         <div className="bg-gray-900 rounded-xl border border-gray-800 p-6">
           <h3 className="font-semibold text-white mb-4">Release Decision</h3>
           <div className="text-center py-4">
-            <div className={`text-5xl mb-3 ${isBlocked ? 'text-red-400' : 'text-green-400'}`}>
-              {isBlocked ? '🚫' : '✅'}
+            <div className={`w-16 h-16 mx-auto mb-3 rounded-xl flex items-center justify-center ${
+              isBlocked ? 'bg-red-500/10 border border-red-500/20' : 'bg-green-500/10 border border-green-500/20'
+            }`}>
+              {isBlocked ? (
+                <svg className="w-8 h-8 text-red-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M18.364 18.364A9 9 0 005.636 5.636m12.728 12.728A9 9 0 015.636 5.636m12.728 12.728L5.636 5.636" />
+                </svg>
+              ) : (
+                <svg className="w-8 h-8 text-green-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+                </svg>
+              )}
             </div>
             <div className={`text-2xl font-bold mb-2 ${isBlocked ? 'text-red-400' : 'text-green-400'}`}>
               {release_readiness.decision}
@@ -331,11 +383,7 @@ const InsightsTab = () => {
             </div>
             <div className="flex justify-between items-center">
               <span className="text-gray-400 text-sm">Trend Direction</span>
-              <span className={`font-semibold text-lg ${
-                defect_trends.trend === 'increasing' ? 'text-red-400' :
-                defect_trends.trend === 'decreasing' ? 'text-green-400' :
-                'text-blue-400'
-              }`}>
+              <span className="font-semibold text-lg">
                 {getTrendIcon(defect_trends.trend)}
               </span>
             </div>
@@ -350,30 +398,43 @@ const InsightsTab = () => {
               <>
                 {hotspots.filter(h => h.severity === 'critical').length > 0 && (
                   <div className="flex items-start space-x-2">
-                    <span className="text-red-400 mt-0.5">⚠️</span>
+                    <svg className="w-4 h-4 text-red-400 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+                    </svg>
                     <span className="text-sm text-gray-300">Fix critical defects immediately</span>
                   </div>
                 )}
                 {hotspots.filter(h => h.severity === 'high').length > 0 && (
                   <div className="flex items-start space-x-2">
-                    <span className="text-orange-400 mt-0.5">🔧</span>
+                    <svg className="w-4 h-4 text-orange-400 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z" />
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+                    </svg>
                     <span className="text-sm text-gray-300">Address high-priority issues</span>
                   </div>
                 )}
                 <div className="flex items-start space-x-2">
-                  <span className="text-blue-400 mt-0.5">📊</span>
+                  <svg className="w-4 h-4 text-blue-400 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" />
+                  </svg>
                   <span className="text-sm text-gray-300">Re-run validation tests</span>
                 </div>
                 {defect_trends.trend === 'increasing' && (
                   <div className="flex items-start space-x-2">
-                    <span className="text-yellow-400 mt-0.5">🔍</span>
+                    <svg className="w-4 h-4 text-yellow-400 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+                    </svg>
                     <span className="text-sm text-gray-300">Investigate defect trend causes</span>
                   </div>
                 )}
               </>
             ) : (
               <div className="text-center py-4 text-gray-500">
-                <div className="text-3xl mb-2">🎉</div>
+                <div className="w-12 h-12 bg-green-500/10 rounded-xl flex items-center justify-center mx-auto mb-2 border border-green-500/20">
+                  <svg className="w-6 h-6 text-green-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+                  </svg>
+                </div>
                 <p className="text-sm">All systems looking good!</p>
               </div>
             )}
