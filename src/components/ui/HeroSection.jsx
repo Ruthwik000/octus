@@ -213,18 +213,19 @@ export default function HeroSection() {
               className="text-2xl md:text-3xl lg:text-4xl font-thin leading-relaxed"
               style={{ color: colors[200] }}
             >
-              <span className="word" data-delay="2600">Intelligent</span>{" "}
-              <span className="word" data-delay="2750">risk</span>{" "}
-              <span className="word" data-delay="2900">scoring,</span>{" "}
-              <span className="word" data-delay="3050">velocity-based</span>{" "}
-              <span className="word" data-delay="3200">work</span>{" "}
-              <span className="word" data-delay="3350">distribution,</span>{" "}
+              <span className="word" data-delay="2600">Gemini</span>{" "}
+              <span className="word" data-delay="2750">AI</span>{" "}
+              <span className="word" data-delay="2900">predictions,</span>{" "}
+              <span className="word" data-delay="3050">intelligent</span>{" "}
+              <span className="word" data-delay="3200">risk</span>{" "}
+              <span className="word" data-delay="3350">scoring,</span>{" "}
               <span className="word" data-delay="3500">and</span>{" "}
               <span className="word" data-delay="3650">real-time</span>{" "}
-              <span className="word" data-delay="3800">insights</span>{" "}
-              <span className="word" data-delay="3950">for</span>{" "}
-              <span className="word" data-delay="4100">modern</span>{" "}
-              <span className="word" data-delay="4250">teams.</span>
+              <span className="word" data-delay="3800">sprint</span>{" "}
+              <span className="word" data-delay="3950">insights</span>{" "}
+              <span className="word" data-delay="4100">for</span>{" "}
+              <span className="word" data-delay="4250">modern</span>{" "}
+              <span className="word" data-delay="4400">teams.</span>
             </div>
           </h1>
           <div
@@ -257,13 +258,13 @@ export default function HeroSection() {
             className="text-xs md:text-sm font-mono font-light uppercase tracking-[0.2em] opacity-80"
             style={{ color: colors[200] }}
           >
-            <span className="word" data-delay="4400">Real-time</span>{" "}
-            <span className="word" data-delay="4550">analytics,</span>{" "}
-            <span className="word" data-delay="4700">seamless</span>{" "}
-            <span className="word" data-delay="4850">Firebase</span>{" "}
-            <span className="word" data-delay="5000">integration,</span>{" "}
-            <span className="word" data-delay="5150">enterprise-grade</span>{" "}
-            <span className="word" data-delay="5300">security.</span>
+            <span className="word" data-delay="4400">AI-powered</span>{" "}
+            <span className="word" data-delay="4550">test</span>{" "}
+            <span className="word" data-delay="4700">generation,</span>{" "}
+            <span className="word" data-delay="4850">visual</span>{" "}
+            <span className="word" data-delay="5000">QA,</span>{" "}
+            <span className="word" data-delay="5150">Firebase</span>{" "}
+            <span className="word" data-delay="5300">integration.</span>
           </h2>
           <div
             className="mt-6 flex justify-center space-x-4 opacity-0"

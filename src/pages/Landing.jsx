@@ -5,33 +5,33 @@ export default function Landing() {
   const features = [
     {
       icon: Brain,
-      title: 'AI-Powered Analysis',
-      description: 'Advanced machine learning algorithms analyze your project data to identify risks, bottlenecks, and optimization opportunities in real-time.'
+      title: 'AI Sprint Analysis',
+      description: 'Powered by Gemini AI to analyze sprint patterns, predict delays, and provide intelligent recommendations based on historical data and current velocity.'
     },
     {
       icon: Zap,
-      title: 'Velocity-Based Distribution',
-      description: 'Intelligent work allocation based on team member velocity and capacity. Assign tasks to the right people for faster completion.'
+      title: 'Smart Test Generation',
+      description: 'AI-powered test case generation for unit, integration, and E2E tests. Supports Jest, Mocha, Cypress, and Playwright frameworks.'
     },
     {
       icon: Shield,
-      title: 'Risk Scoring Engine',
-      description: 'Multi-factor risk assessment considering deadlines, complexity, dependencies, workload, and velocity trends.'
+      title: 'Risk Scoring & Predictions',
+      description: 'Mathematical risk assessment using velocity, bugs, and deadlines. Predicts delays and identifies high-risk tasks before they become problems.'
     },
     {
       icon: Users,
-      title: 'Team Workload Optimization',
-      description: 'Detect overloaded team members and get AI recommendations to redistribute work effectively across your team.'
+      title: 'Visual QA & Validation',
+      description: 'Upload designs for AI-powered UX feedback, UI comparison, and visual regression testing. Integrated with Cloudinary for seamless image management.'
     },
     {
       icon: TrendingUp,
-      title: 'Predictive Analytics',
-      description: 'Forecast project completion dates, identify potential delays, and get proactive recommendations to stay on track.'
+      title: 'Release Insights',
+      description: 'Comprehensive release readiness scoring, defect trend analysis, and module hotspot detection to make confident go/no-go decisions.'
     },
     {
       icon: Target,
-      title: 'Real-Time Insights',
-      description: 'Live dashboard with KPIs, velocity metrics, risk breakdowns, and actionable insights powered by Firebase.'
+      title: 'Real-Time Dashboard',
+      description: 'Live KPIs with team velocity tracking, predicted delays, and high-risk task monitoring. All data synced with Firebase in real-time.'
     }
   ];
 
@@ -99,10 +99,10 @@ export default function Landing() {
 
           <div className="grid grid-cols-1 md:grid-cols-4 gap-8">
             {[
-              { step: '01', title: 'Import Data', desc: 'Upload your project tasks via CSV or Excel' },
-              { step: '02', title: 'AI Analysis', desc: 'Our engine analyzes risks, velocity, and workload' },
-              { step: '03', title: 'Get Insights', desc: 'Receive actionable recommendations and predictions' },
-              { step: '04', title: 'Optimize', desc: 'Apply suggestions and track improvements in real-time' }
+              { step: '01', title: 'Import Tasks', desc: 'Upload tasks via CSV/Excel or add manually with velocity, bugs, and modules' },
+              { step: '02', title: 'AI Analysis', desc: 'Gemini AI analyzes patterns, calculates risk scores, and predicts outcomes' },
+              { step: '03', title: 'Get Predictions', desc: 'View completed task performance and predictions for new tasks with recommendations' },
+              { step: '04', title: 'Track & Optimize', desc: 'Monitor KPIs, apply suggestions, and track improvements in real-time' }
             ].map((item, index) => (
               <div key={index} className="relative">
                 <div 
@@ -136,10 +136,10 @@ export default function Landing() {
       <section className="py-24 px-4 bg-gradient-to-b from-[#1a1d18] to-[#0a0f1e]">
         <div className="max-w-4xl mx-auto text-center">
           <h2 className="text-4xl md:text-5xl font-bold text-[#f8f7f5] mb-6">
-            Ready to Transform Your Project Management?
+            Ready to Supercharge Your Sprint Planning?
           </h2>
           <p className="text-xl text-[#c8b4a0] mb-10">
-            Join teams using AI to deliver projects faster and more effectively
+            Join teams using Gemini AI to predict risks, optimize velocity, and deliver projects on time
           </p>
           <div className="flex flex-col sm:flex-row gap-4 justify-center items-center">
             <a
